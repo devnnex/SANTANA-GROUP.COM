@@ -1,0 +1,12 @@
+{
+  "name": "SANTANA GROUP APPLICATION",
+  "short_name": "Santana Group App",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#ff6600",
+  "icons": [
+    { "src": "./images/favicon.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./images/favicon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

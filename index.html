@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔥 Legendary | Inventory 🔥</title>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- html2canvas + jsPDF -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js"></script>
+
+<link rel="stylesheet" href="style.css">
+
+<!-- FONTAWESOME CDN -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
+
+  <!-- 🧩 Favicon clásico -->
+  <link rel="icon" type="image/png" href="./images/favicon.png">
+
+  <!-- 📱 Ícono de app (iOS / Android) -->
+  <link rel="apple-touch-icon" href="./images/favicon.png">
+
+  <!-- 🧭 Configuración PWA -->
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Santana Group App">
+
+  <!-- 📜 Manifest -->
+  <link rel="manifest" href="./manifest.json">
+<style>
+:root {
+  --bg-dark: #000000;
+  --card-bg: #101012;
+  --primary: #fdfdfd;
+  --accent: #45d37a;
+  --text-light: #f5f5f5;
+  --text-muted: #aaa;
+  --shadow: rgba(0,0,0,0.2);
+}
+
+* { box-sizing: border-box; margin:0; padding:0; font-family:'Segoe UI',sans-serif; }
+body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
+
+.topbar {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 20px; background: var(--card-bg); box-shadow: 0 4px 6px var(--shadow);
+  flex-wrap: wrap;
+}
+.topbar .logo img { height:40px; box-shadow: #fff;}
+.topbar .tabs { display:flex; flex-wrap:wrap; gap:10px; }
+.tab-btn { padding:8px 15px; border:none; background:none; color:var(--text-light); cursor:pointer; border-radius:6px; transition:.2s; }
+.tab-btn.active { background: var(--primary); color:#000000; }
+
+.container { padding:20px; display:flex; flex-direction:column; gap:20px; }
+.card { background: var(--card-bg); border-radius:12px; padding:15px; box-shadow: 0 4px 8px var(--shadow); overflow:auto; }
+.table-card table { width:100%; border-collapse: collapse; }
+.table-card th, .table-card td { padding:10px; text-align:left; border-bottom:1px solid #333; }
+.table-card th { background: #2f2f4b; }
+.page-header { display:flex; justify-content:space-between; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:15px; }
+.btn { padding:8px 12px; border:none; border-radius:6px; cursor:pointer; transition:.2s; }
+.btn.primary { background:var(--primary); color:#000000; }
+.btn.ghost { background:none; border:1px solid var(--primary); color:var(--primary); }
+.btn.danger { background:#e74c3c; color:#fff; }
+
+.stats-row { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:15px; }
+.stat-card { padding:15px; border-radius:12px; background: #2a2a3c; text-align:center; }
+.chart-row { display:grid; grid-template-columns:1fr; gap:15px; }
+.chart-card { padding:15px; border-radius:12px; background:#2a2a3c; }
+
+@media(min-width:768px){
+  .chart-row { grid-template-columns:1fr 1fr; }
+}
+
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:1000; }
+.modal { background: var(--card-bg); padding:20px; border-radius:12px; max-width:400px; width:90%; position:relative; }
+.modal-close { position:absolute; top:10px; right:10px; border:none; background:none; font-size:20px; cursor:pointer; }
+.form-grid {  gap:10px; }
+.totalDisplay { font-weight:bold; font-size:1.1rem; color:var(--accent); text-align:right; }
+
+#brandDetailModal.hidden { display: none; }
+#brandDetailModal .modal {
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(255,255,255,0.2);
+  max-width: 500px;
+  width: 90%;
+}
+#brandDetailModal table th, #brandDetailModal table td {
+  padding: 8px;
+  border-bottom: 1px solid #333;
+}
+
+/* ===== Modal con borde neón galáctico total ===== */
+#brandDetailModal .modal {
+  position: relative;
+  overflow: hidden;
+  background: rgba(15, 10, 30, 0.95);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 0 40px rgba(160, 90, 255, 0.5),
+              0 0 80px rgba(100, 180, 255, 0.3);
+  animation: neonGlow 3s ease-in-out infinite alternate;
+}
+
+/* Borde animado brillante */
+#brandDetailModal .modal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  padding: 3px;
+  background: linear-gradient(270deg, 
+    rgba(200,100,255,1),
+    rgba(120,180,255,1),
+    rgba(255,100,255,1),
+    rgba(127,90,240,1),
+    rgba(120,180,255,1)
+  );
+  background-size: 600% 600%;
+  animation: borderNeonFlow 5s linear infinite;
+  filter: blur(1px);
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+}
+
+/* Animación del flujo del borde */
+@keyframes borderNeonFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Halo dinámico pulsante */
+@keyframes neonGlow {
+  0% {
+    box-shadow: 
+      0 0 20px rgba(160,90,255,0.8),
+      0 0 40px rgba(120,180,255,0.5),
+      0 0 60px rgba(255,100,255,0.3);
+  }
+  100% {
+    box-shadow: 
+      0 0 50px rgba(180,90,255,1),
+      0 0 100px rgba(120,180,255,0.8),
+      0 0 150px rgba(255,100,255,0.6);
+  }
+}
+
+#brandDetailModal .close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, #ff2e2e 0%, #b30000 80%);
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 0 15px rgba(255, 60, 60, 0.6),
+    0 0 30px rgba(255, 0, 0, 0.4);
+  transition: all 0.25s ease-in-out;
+}
+
+#brandDetailModal .close-btn:hover {
+  background: radial-gradient(circle at center, #ff4d4d 0%, #e60000 80%);
+  box-shadow:
+    0 0 25px rgba(255, 80, 80, 0.9),
+    0 0 50px rgba(255, 0, 0, 0.7);
+  transform: scale(1.1);
+}
+
+#brandDetailModal .close-btn:active {
+  transform: scale(0.95);
+  box-shadow:
+    0 0 10px rgba(255, 80, 80, 0.6),
+    0 0 20px rgba(255, 0, 0, 0.5);
+}
+
+
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="logo"><img src="images/logo.png" alt="Logo"></div>
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="inventory">Inventario</button>
+    <button class="tab-btn" data-tab="sales">Ventas</button>
+    <button class="tab-btn" data-tab="analysis" id="tabAnalysisBtn">Análisis</button>
+    <button class="tab-btn" data-tab="sold">Vendidos</button>
+  </nav>
+  <!-- <div><button class="btn ghost" id="logoutBtn">Cerrar Sesión</button></div> -->
+</header>
+
+<main class="container">
+  <!-- INVENTARIO -->
+  <section id="inventory" class="tab-content">
+    <div class="page-header">
+      <h1>Inventario</h1>
+      <div>
+        <button class="btn primary" id="addProductBtn">+ Agregar Producto</button>
+        <button class="btn ghost" id="deleteSelectedBtn">Eliminar Seleccionados (0)</button>
+        <button class="btn ghost" id="downloadInventoryPdfBtn">Exportar PDF</button>
+        <button class="btn ghost" id="exportInventoryExcel">Exportar Excel</button>
+      </div>
+    </div>
+    <input id="searchInventory" placeholder="Buscar productos..." style="padding:8px; border-radius:6px; width:100%; margin-bottom:10px;">
+    <div class="card table-card" id="inventoryTableWrapper">
+      <table id="inventoryTable">
+        <thead>
+        <tr>
+          <th><input type="checkbox" id="selectAllProducts"></th>
+          <th>Producto</th><th>Marca</th><th>Precio Venta</th><th>Stock</th><th>Vendidos</th><th>Acciones</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SECCIÓN VENTAS -->
+  <section id="sales" class="tab-content hidden">
+    <div class="page-header">
+      <h1>Ventas</h1>
+      <div>
+        <button class="btn ghost" id="deleteSelectedSales">Eliminar Seleccionados</button>
+        <button class="btn danger" id="deleteAllSales">Eliminar Todos</button>
+        <button class="btn ghost" id="downloadSalesPdfBtn">Exportar PDF</button>
+        <button class="btn primary" id="exportSalesExcel">Exportar Excel</button>
+      </div>
+    </div>
+    <input id="searchSales" placeholder="Buscar ventas..." style="padding:8px; border-radius:6px; width:100%; margin-bottom:10px;">
+    <div class="card table-card" id="salesTableWrapper">
+      <table id="salesTable">
+        <thead>
+          <tr><th></th><th>Producto</th><th>Marca</th><th>Cantidad</th><th>Total</th><th>Método Pago 1</th><th>Método Pago 2</th><th>Fecha</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ANÁLISIS -->
+  <section id="analysis" class="tab-content hidden">
+    <div class="page-header">
+      <h1>Análisis</h1>
+      <button class="btn ghost" id="refreshAnalysisBtn">Refrescar</button>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div>Ventas Totales</div><div id="statTotalSales">$0</div><div id="statTotalItems">0 productos</div></div>
+      <div class="stat-card"><div>Ganancias Totales</div><div id="statTotalProfit">$0</div><div id="statMargin">0%</div></div>
+      <div class="stat-card"><div>Ventas Hoy</div><div id="statTodaySales">$0</div></div>
+      <div class="stat-card"><div>Ventas Mes</div><div id="statMonthSales">$0</div></div>
+    </div>
+    <div class="card chart-row">
+      <div class="chart-card"><h4>Ventas por Mes</h4><canvas id="salesByMonthChart"></canvas></div>
+      <div class="chart-card"><h4>Top Productos Vendidos</h4><canvas id="topProductsChart"></canvas></div>
+      <div class="chart-card"><h4>Inventario Adquirido</h4><canvas id="investmentByBrandChart"></canvas></div>
+
+    </div>
+  </section>
+
+  <!-- VENDIDOS -->
+  <section id="sold" class="tab-content hidden">
+    <div class="page-header"><h1>Vendidos</h1>
+    <button id="deleteAllSoldBtn" class="btn danger">Eliminar Todos</button> <!-- 👈 nuevo botón -->
+    </div>
+    <div class="card table-card">
+      <table id="soldTable">
+        <thead><tr><th>Producto</th><th>Marca</th><th>Precio Venta</th><th>Vendidos</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<!-- Modal Detalle de Marca -->
+<div id="brandDetailModal" class="modal-overlay hidden">
+  <div class="modal">
+    <button class="close-btn" id="closeBrandDetail">&times;</button>
+    <h2 id="brandDetailTitle">Detalle de Marca</h2>
+    <table style="width:100%;border-collapse:collapse;margin-top:10px;">
+      <thead>
+        <tr>
+          <th style="text-align:left;">Producto</th>
+          <th>Cantidad</th>
+          <th>Costo Unit.</th>
+          <th>Total Inversión</th>
+        </tr>
+      </thead>
+      <tbody id="brandDetailBody"></tbody>
+    </table>
+  </div>
+</div>
+
+
+
+
+
+<footer style="text-align:center; padding:10px; color:#aaa;">© 2025 Santana Group</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
