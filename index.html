@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🔥 Legendary | Inventory 🔥</title>
+<title>🔥 Santana Group | System 🔥</title>
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -208,7 +208,9 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
     <button class="tab-btn active" data-tab="inventory">Inventario</button>
     <button class="tab-btn" data-tab="sales">Ventas</button>
     <button class="tab-btn" data-tab="analysis" id="tabAnalysisBtn">Análisis</button>
-    <button class="tab-btn" data-tab="sold">Vendidos</button>
+    <button class="tab-btn" data-tab="sold">Agotados</button>
+    <button class="tab-btn" data-tab="clients">Clientes</button>
+
   </nav>
   <!-- <div><button class="btn ghost" id="logoutBtn">Cerrar Sesión</button></div> -->
 </header>
@@ -267,6 +269,7 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
       <h1>Análisis</h1>
       <button class="btn ghost" id="refreshAnalysisBtn">Refrescar</button>
     </div>
+    
     <div class="stats-row">
       <div class="stat-card"><div>Ventas Totales</div><div id="statTotalSales">$0</div><div id="statTotalItems">0 productos</div></div>
       <div class="stat-card"><div>Ganancias Totales</div><div id="statTotalProfit">$0</div><div id="statMargin">0%</div></div>
@@ -293,6 +296,44 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
       </table>
     </div>
   </section>
+
+  <!-- CLIENTES -->
+
+  <section id="clients" class="tab-content hidden">
+   <div id="clientStats" class="kpi-grid">
+    <!-- aquí se llenarán los KPIs dinámicamente -->
+  </div>
+ 
+     
+  <div class="page-header">
+    <h1>Clientes</h1>
+     <input id="clientSearch" type="text" placeholder="🔍 Buscar cliente..." style="flex:1;min-width:180px;">
+     <button id="deleteSelectedClients" class="btn ghost">🗑️ Eliminar seleccionados</button>
+     <button id="deleteAllClients" class="btn ghost">⚠️ Eliminar todos</button>
+     <button class="btn primary" id="addClientBtn">+ Agregar Cliente</button>    
+  </div>
+
+  <div class="card table-card">
+    <table id="clientsTable">
+  <thead>
+    <tr>
+      <th style="width:40px;text-align:center;">
+        <input type="checkbox" id="checkAllClients" />
+      </th>
+      <th>Nombre</th>
+      <th>Teléfono</th>
+      <th>Correo</th>
+      <th>Cumpleaños</th>
+      <th>Registrado</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+  </div>
+</section>
+
 </main>
 
 <!-- Modal Detalle de Marca -->
