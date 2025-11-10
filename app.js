@@ -524,85 +524,91 @@ function renderStatsAndCharts() {
   const stToday = $('#statTodaySales');
   const stMonth = $('#statMonthSales');
 
-  if (stTotalSales) { stTotalSales.textContent = formatCurrency(totalRevenue); stTotalSales.style.fontSize = '1.8rem'; stTotalSales.style.fontWeight = 700; }
-  if (stTotalProfit) { stTotalProfit.textContent = formatCurrency(totalProfit); stTotalProfit.style.fontSize = '1.8rem'; stTotalProfit.style.fontWeight = 700; }
-  if (stTotalItems) { stTotalItems.textContent = `${totalItems} productos`; stTotalItems.style.fontSize = '1rem'; }
-  if (stMargin) stMargin.textContent = totalRevenue ? Math.round((totalProfit/totalRevenue)*100) + '%' : '0%';
+  // === Plantilla de KPI ===
+  function makeKPI(id, label, value, fontSize = '1.6rem', showLabel = false) {
+    return `
+      <div class="kpi-wrapper" data-id="${id}">
+        ${showLabel ? `<span class="kpi-label">${label}:</span>` : ''}
+        <div class="kpi-content">
+          <span class="kpi-value" data-visible="false" style="font-size:${fontSize};font-weight:700;">***</span>
+          <button class="toggle-visibility" title="Mostrar valor">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <span class="kpi-real-value" style="display:none;">${value}</span>
+      </div>
+    `;
+  }
 
-  // === Hoy y mes actual ===
- // --- Cálculo preciso de ventas del día y del mes (considerando la hora local) ---
+  // === Insertar KPI Totales ===
+  if (stTotalSales)
+    stTotalSales.innerHTML = makeKPI('totalSales', 'Ventas totales', formatCurrency(totalRevenue), '1.6rem', false);
+  if (stTotalProfit)
+    stTotalProfit.innerHTML = makeKPI('totalProfit', 'Ganancia total', formatCurrency(totalProfit), '1.6rem', false);
+  if (stTotalItems)
+    stTotalItems.innerHTML = makeKPI('totalItems', 'Productos vendidos', `${totalItems} productos`, '1rem', true);
+  if (stMargin)
+    stMargin.innerHTML = makeKPI('margin', 'Margen', totalRevenue ? Math.round((totalProfit / totalRevenue) * 100) + '%' : '0%', '1.6rem', true);
 
-// Convertir a zona horaria de Bogotá (UTC-5)
-const now = new Date();
-const offsetBogota = -5 * 60; // minutos de desfase
-const nowBogota = new Date(now.getTime() + (offsetBogota + now.getTimezoneOffset()) * 60000);
+  // === Ventas de hoy y del mes ===
+  const now = new Date();
+  const offsetBogota = -5 * 60;
+  const nowBogota = new Date(now.getTime() + (offsetBogota + now.getTimezoneOffset()) * 60000);
+  const todayKey = nowBogota.toISOString().slice(0, 10);
+  const monthKey = nowBogota.toISOString().slice(0, 7);
 
-// Claves de comparación
-const todayKey = nowBogota.toISOString().slice(0, 10);
-const monthKey = nowBogota.toISOString().slice(0, 7);
+  const salesToday = sales
+    .filter(s => {
+      if (!s.timestamp) return false;
+      const saleDate = new Date(s.timestamp);
+      const saleBogota = new Date(saleDate.getTime() + (offsetBogota + saleDate.getTimezoneOffset()) * 60000);
+      return saleBogota.toISOString().slice(0, 10) === todayKey;
+    })
+    .reduce((a, b) => a + (b.total || 0), 0);
 
-// Filtrar ventas del día (desde 00:00 hasta 23:59 del día actual)
-const salesToday = sales
-  .filter(s => {
-    if (!s.timestamp) return false;
-    const saleDate = new Date(s.timestamp);
-    const saleBogota = new Date(saleDate.getTime() + (offsetBogota + saleDate.getTimezoneOffset()) * 60000);
-    return saleBogota.toISOString().slice(0, 10) === todayKey;
-  })
-  .reduce((a, b) => a + (b.total || 0), 0);
+  const salesThisMonth = sales
+    .filter(s => (s.timestamp || '').slice(0, 7) === monthKey)
+    .reduce((a, b) => a + (b.total || 0), 0);
 
-// Filtrar ventas del mes actual
-const salesThisMonth = sales
-  .filter(s => (s.timestamp || '').slice(0, 7) === monthKey)
-  .reduce((a, b) => a + (b.total || 0), 0);
-
-// Mostrar totales formateados
-if (stToday) {
-  stToday.textContent = formatCurrency(salesToday);
-  stToday.style.fontSize = '1.4rem';
-  stToday.style.fontWeight = 700;
-}
-if (stMonth) {
-  stMonth.textContent = formatCurrency(salesThisMonth);
-  stMonth.style.fontSize = '1.4rem';
-  stMonth.style.fontWeight = 700;
-}
-
+  // === Aplicar mismo formato KPI a hoy y mes ===
+  if (stToday)
+    stToday.innerHTML = makeKPI('todaySales', ' ', formatCurrency(salesToday), '1.4rem', true);
+  if (stMonth)
+    stMonth.innerHTML = makeKPI('monthSales', ' ', formatCurrency(salesThisMonth), '1.4rem', true);
 
   // === Ventas por mes (últimos 12 meses) ===
   const months = [], labels = [];
   for (let i = 11; i >= 0; i--) {
-    const d = new Date(); d.setMonth(d.getMonth() - i);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     labels.push(d.toLocaleString('es-ES', { month: 'short', year: 'numeric' }));
     months.push({ key, total: 0 });
   }
+
   sales.forEach(s => {
-    const key = (s.timestamp||'').slice(0,7);
+    const key = (s.timestamp || '').slice(0, 7);
     const m = months.find(x => x.key === key);
     if (m) m.total += s.total || 0;
   });
 
   const ctx1 = $('#salesByMonthChart')?.getContext && $('#salesByMonthChart').getContext('2d');
   if (ctx1) {
-    if (window.salesByMonthChart instanceof Chart) {
-      console.log("🧹 Destruyendo gráfico anterior: salesByMonthChart");
-      window.salesByMonthChart.destroy();
-    }
+    if (window.salesByMonthChart instanceof Chart) window.salesByMonthChart.destroy();
     window.salesByMonthChart = new Chart(ctx1, {
       type: 'line',
       data: {
         labels,
         datasets: [{
           label: 'Ventas',
-          data: months.map(m=>m.total),
+          data: months.map(m => m.total),
           borderColor: '#7f5af0',
           backgroundColor: 'rgba(127,90,240,0.16)',
           fill: true,
           tension: 0.25
         }]
       },
-      options: { plugins: { legend: { display:false } }, scales: { y: { beginAtZero:true } } }
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
     });
   }
 
@@ -617,20 +623,17 @@ if (stMonth) {
     if (!productMap[p.id]) productMap[p.id] = { name: p.name, sold: p.sold || 0 };
   });
 
-  const top = Object.values(productMap).sort((a,b)=>b.sold - a.sold).slice(0,6);
+  const top = Object.values(productMap).sort((a, b) => b.sold - a.sold).slice(0, 6);
   const ctx2 = $('#topProductsChart')?.getContext && $('#topProductsChart').getContext('2d');
   if (ctx2) {
-    if (window.topProductsChart instanceof Chart) {
-      console.log("🧹 Destruyendo gráfico anterior: topProductsChart");
-      window.topProductsChart.destroy();
-    }
+    if (window.topProductsChart instanceof Chart) window.topProductsChart.destroy();
     window.topProductsChart = new Chart(ctx2, {
       type: 'bar',
-      data: { 
-        labels: top.map(t=>t.name),
-        datasets: [{ label:'Unidades', data: top.map(t=>t.sold), backgroundColor: 'rgba(59,130,246,0.85)' }]
+      data: {
+        labels: top.map(t => t.name),
+        datasets: [{ label: 'Unidades', data: top.map(t => t.sold), backgroundColor: 'rgba(59,130,246,0.85)' }]
       },
-      options: { plugins:{ legend:{ display:false } }, scales: { y: { beginAtZero:true } } }
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
     });
   }
 
@@ -650,10 +653,7 @@ if (stMonth) {
 
   const ctx3 = document.querySelector('#investmentByBrandChart')?.getContext('2d');
   if (ctx3) {
-    if (window.investmentByBrandChart instanceof Chart) {
-      console.log("🧹 Destruyendo gráfico anterior: investmentByBrandChart");
-      window.investmentByBrandChart.destroy();
-    }
+    if (window.investmentByBrandChart instanceof Chart) window.investmentByBrandChart.destroy();
     window.investmentByBrandChart = new Chart(ctx3, {
       type: 'bar',
       data: {
@@ -668,23 +668,42 @@ if (stMonth) {
       options: {
         plugins: {
           legend: { display: false },
-          title: {
-            display: true,
-            text: `Total invertido: ${formatCurrency(totalInvestment)}`
-          },
-          tooltip: {
-            callbacks: { label: ctx => formatCurrency(ctx.raw) }
-          }
+          title: { display: true, text: `Total invertido: ${formatCurrency(totalInvestment)}` },
+          tooltip: { callbacks: { label: ctx => formatCurrency(ctx.raw) } }
         },
-        scales: {
-          y: { beginAtZero: true, ticks: { callback: v => formatCurrency(v) } }
-        }
+        scales: { y: { beginAtZero: true, ticks: { callback: v => formatCurrency(v) } } }
       }
     });
   }
 
   console.log("✅ renderStatsAndCharts() completado sin errores.");
 }
+
+
+// === Toggle KPI visibility ===
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.toggle-visibility');
+  if (!btn) return;
+
+  const wrapper = btn.closest('.kpi-wrapper');
+  const valueEl = wrapper.querySelector('.kpi-value');
+  const realValueEl = wrapper.querySelector('.kpi-real-value');
+  const icon = btn.querySelector('i');
+  const isVisible = valueEl.dataset.visible === 'true';
+
+  if (isVisible) {
+    valueEl.textContent = '***';
+    valueEl.dataset.visible = 'false';
+    icon.classList.replace('fa-eye-slash', 'fa-eye');
+  } else {
+    valueEl.textContent = realValueEl.textContent;
+    valueEl.dataset.visible = 'true';
+    icon.classList.replace('fa-eye', 'fa-eye-slash');
+  }
+});
+
+
+
 
 
 /* ---------- Reiniciar ventas diarias a medianoche (hora Bogotá o UTC) ---------- */
@@ -1028,14 +1047,21 @@ $('#searchInventory')?.addEventListener('input', (e)=> renderInventoryTable(e.ta
 $('#searchSales')?.addEventListener('input', (e)=> renderSalesTable(e.target.value));
 
 /* ---------- Tabs ---------- */
-$$('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+$$('.tab-btn').forEach(btn => btn.addEventListener('click', (e) => {
+  e.stopPropagation(); // 🚫 Evita que otros clics disparen cosas
   $$('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   const tab = btn.dataset.tab;
   $$('.tab-content').forEach(t => t.classList.add('hidden'));
-  $(`#${tab}`)?.classList.remove('hidden');
-  if (tab === 'analysis') setTimeout(() => { renderStatsAndCharts(); renderBrandAnalysis(); }, 120);
+  const section = document.getElementById(tab);
+  if (section) section.classList.remove('hidden');
+  if (tab === 'clients') renderClientsTable(); // ✅ Render clientes al abrir
+  if (tab === 'analysis') setTimeout(() => {
+    renderStatsAndCharts();
+    renderBrandAnalysis();
+  }, 120);
 }));
+
 
 /* ---------- Render all ---------- */
 function renderAll() {
@@ -1125,14 +1151,14 @@ window.addEventListener('DOMContentLoaded', init);
 })();
 
 
- // ===========================================================
-// 🔒 LOGIN PROFESIONAL PARA ANÁLISIS (versión depurable)
+// ===========================================================
+// 🔒 LOGIN PROFESIONAL PARA ANÁLISIS (con botón Cancelar)
 // ===========================================================
 document.addEventListener("DOMContentLoaded", () => {
-  const PASSWORD = "admin123"; // 🔒 Cambia esta clave a la que tú quieras
+  const PASSWORD = "admin123"; // 🔒 Cambia esta clave
   let isAuthenticated = false;
 
-  // Escucha clics en los botones de pestaña
+  // Escucha clics en las pestañas
   document.querySelectorAll(".tab-btn").forEach(btn => {
     if (btn.dataset.tab === "analysis") {
       btn.addEventListener("click", e => {
@@ -1146,7 +1172,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- 💡 Modal login ---
   function showLoginModal() {
-    // Evita duplicados
     if (document.querySelector(".login-overlay")) return;
 
     const html = `
@@ -1155,7 +1180,10 @@ document.addEventListener("DOMContentLoaded", () => {
           <h2 class="login-title">🔒 Acceso restringido</h2>
           <p class="login-desc">Introduce la contraseña para continuar:</p>
           <input type="password" id="loginPassword" placeholder="Contraseña" class="login-input" autofocus />
-          <button id="loginConfirm" class="login-btn">Ingresar</button>
+          <div class="login-actions">
+            <button id="loginConfirm" class="login-btn">Ingresar</button>
+            <button id="loginCancel" class="login-btn cancel">Cancelar</button>
+          </div>
           <p id="loginError" class="login-error"></p>
         </div>
       </div>
@@ -1166,9 +1194,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const overlay = document.querySelector(".login-overlay");
     const input = document.getElementById("loginPassword");
     const confirm = document.getElementById("loginConfirm");
+    const cancel = document.getElementById("loginCancel");
     const error = document.getElementById("loginError");
 
     confirm.addEventListener("click", checkPassword);
+    cancel.addEventListener("click", goBackToInventory);
     input.addEventListener("keypress", e => {
       if (e.key === "Enter") checkPassword();
     });
@@ -1185,8 +1215,15 @@ document.addEventListener("DOMContentLoaded", () => {
         input.focus();
       }
     }
+
+    function goBackToInventory() {
+      overlay.classList.add("fade-out");
+      setTimeout(() => overlay.remove(), 300);
+      document.querySelector('.tab-btn[data-tab="inventory"]').click();
+    }
   }
 });
+
 
 
 /* ---------- Botón Refrescar Análisis ---------- */
@@ -1203,3 +1240,292 @@ $('#refreshAnalysisBtn')?.addEventListener('click', () => {
 });
 
 
+/* ===========================
+   MÓDULO CLIENTES (MEJORADO CON BUSCADOR Y ACCIONES)
+   =========================== */
+const LS_CLIENTS = 'clientsData';
+const loadClients = () => JSON.parse(localStorage.getItem(LS_CLIENTS) || '[]');
+const saveClients = (arr) => localStorage.setItem(LS_CLIENTS, JSON.stringify(arr));
+
+/* === Render tabla === */
+function renderClientsTable(filter = '') {
+  const tbody = document.querySelector('#clientsTable tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const q = (filter || '').trim().toLowerCase();
+  const clients = loadClients();
+
+  if (!clients.length) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="6" style="text-align:center;opacity:.6;">Sin clientes registrados</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  clients
+    .filter(c => {
+      if (!q) return true;
+      return (
+        (c.nombre || '').toLowerCase().includes(q) ||
+        (c.telefono || '').toLowerCase().includes(q) ||
+        (c.correo || '').toLowerCase().includes(q)
+      );
+    })
+    .forEach(c => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="checkbox" class="client-check" data-id="${c.id}" /></td>
+        <td>${esc(c.nombre)}</td>
+        <td>${esc(c.telefono || '')}</td>
+        <td>${esc(c.correo || '')}</td>
+        <td>${c.fechaCumple || '-'}</td>
+        <td>${c.fechaRegistro ? new Date(c.fechaRegistro).toLocaleDateString() : '-'}</td>
+        <td>
+          <button class="btn ghost" data-id="${c.id}" data-action="edit-client">Editar</button>
+          <button class="btn ghost" data-id="${c.id}" data-action="delete-client">Eliminar</button>
+          <button class="btn ghost" data-id="${c.id}" data-action="email-client">📧</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+}
+
+/* === Modal === */
+(function createClientModalOnce() {
+  if (document.getElementById('clientModalOverlay')) return;
+
+  const html = `
+  <div id="clientModalOverlay" class="modal-overlay hidden" style="display:none;">
+    <div class="modal card" id="clientModal" style="max-width:420px;">
+      <button id="closeClientModal" class="modal-close">✕</button>
+      <h2 id="clientModalTitle">Nuevo Cliente</h2>
+      <form id="clientForm" class="form-grid">
+        <input id="c_id" type="hidden" />
+        <label>Nombre*<input id="c_nombre" required /></label>
+        <label>Teléfono<input id="c_telefono" /></label>
+        <label>Correo<input id="c_correo" type="email" /></label>
+        <label>Fecha de Cumpleaños<input id="c_fechaCumple" type="date" /></label>
+        <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+          <button type="button" id="cancelClientModal" class="btn ghost">Cancelar</button>
+          <button type="submit" class="btn primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.getElementById('clientModalOverlay').style.display = '';
+
+  const clientForm = document.getElementById('clientForm');
+  if (!clientForm.__attached) {
+    clientForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const editingId = document.getElementById('c_id').value || null;
+      const clients = loadClients();
+      const payload = {
+        id: editingId || cryptoId(),
+        nombre: document.getElementById('c_nombre').value.trim(),
+        telefono: document.getElementById('c_telefono').value.trim(),
+        correo: document.getElementById('c_correo').value.trim(),
+        fechaCumple: document.getElementById('c_fechaCumple').value || '',
+        fechaRegistro: editingId
+          ? clients.find(c => c.id === editingId)?.fechaRegistro || nowISO()
+          : nowISO()
+      };
+      if (editingId) {
+        const idx = clients.findIndex(c => c.id === editingId);
+        if (idx !== -1) clients[idx] = payload;
+      } else clients.push(payload);
+
+      saveClients(clients);
+      hide('#clientModalOverlay');
+      renderClientsTable(document.querySelector('#clientSearch')?.value || '');
+    });
+    clientForm.__attached = true;
+  }
+
+  document.getElementById('closeClientModal').onclick = () => hide('#clientModalOverlay');
+  document.getElementById('cancelClientModal').onclick = () => hide('#clientModalOverlay');
+  document.getElementById('clientModalOverlay').onclick = ev => {
+    if (ev.target.id === 'clientModalOverlay') hide('#clientModalOverlay');
+  };
+})();
+
+/* === Eventos Globales === */
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+
+  const id = btn.dataset.id;
+  const action = btn.dataset.action;
+
+  // Agregar
+  if (btn.id === 'addClientBtn') {
+    document.getElementById('clientForm').reset();
+    document.getElementById('c_id').value = '';
+    document.getElementById('clientModalTitle').textContent = 'Nuevo Cliente';
+    show('#clientModalOverlay');
+  }
+
+  // Editar
+  if (action === 'edit-client') {
+    const c = loadClients().find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('clientModalTitle').textContent = 'Editar Cliente';
+    document.getElementById('c_id').value = c.id;
+    document.getElementById('c_nombre').value = c.nombre;
+    document.getElementById('c_telefono').value = c.telefono || '';
+    document.getElementById('c_correo').value = c.correo || '';
+    document.getElementById('c_fechaCumple').value = c.fechaCumple || '';
+    show('#clientModalOverlay');
+  }
+
+  // Eliminar individual
+  if (action === 'delete-client') {
+    if (!confirm('¿Eliminar cliente?')) return;
+    saveClients(loadClients().filter(x => x.id !== id));
+    renderClientsTable();
+  }
+
+  // Enviar correo
+  if (action === 'email-client') {
+    const c = loadClients().find(x => x.id === id);
+    if (c?.correo) {
+      window.location.href = `mailto:${c.correo}?subject=Hola ${encodeURIComponent(c.nombre)}`;
+    } else {
+      alert('Este cliente no tiene correo registrado.');
+    }
+  }
+
+  // Eliminar seleccionados
+  if (btn.id === 'deleteSelectedClients') {
+    const checks = [...document.querySelectorAll('.client-check:checked')];
+    if (!checks.length) return alert('Selecciona al menos un cliente.');
+    if (!confirm(`¿Eliminar ${checks.length} cliente(s)?`)) return;
+    const ids = checks.map(ch => ch.dataset.id);
+    saveClients(loadClients().filter(c => !ids.includes(c.id)));
+    renderClientsTable();
+  }
+
+  // Eliminar todos
+  if (btn.id === 'deleteAllClients') {
+    if (confirm('¿Eliminar TODOS los clientes?')) {
+      localStorage.removeItem(LS_CLIENTS);
+      renderClientsTable();
+    }
+  }
+});
+
+/* === Buscador === */
+document.addEventListener('input', e => {
+  if (e.target.id === 'clientSearch') renderClientsTable(e.target.value);
+});
+
+/* === Render al abrir pestaña === */
+$$('.tab-btn').forEach(btn =>
+  btn.addEventListener('click', () => {
+    if (btn.dataset.tab === 'clients') setTimeout(() => renderClientsTable(), 50);
+  })
+);
+
+
+
+/* ===========================
+   KPIs de Clientes (Live Auto Update)
+   =========================== */
+
+function renderClientKPIs() {
+  const container = document.getElementById('clientStats');
+  if (!container) return;
+  const clients = loadClients();
+
+  // 1️⃣ Total de clientes
+  const total = clients.length;
+
+  // 2️⃣ Próximo cumpleaños
+  let proximo = '—';
+  if (clients.length) {
+    const hoy = new Date();
+    const proximos = clients
+      .filter(c => c.fechaCumple)
+      .map(c => {
+        const fecha = new Date(c.fechaCumple);
+        fecha.setFullYear(hoy.getFullYear());
+        if (fecha < hoy) fecha.setFullYear(hoy.getFullYear() + 1);
+        return { nombre: c.nombre, fecha };
+      })
+      .sort((a, b) => a.fecha - b.fecha);
+
+    if (proximos.length) {
+      const siguiente = proximos[0];
+      const dias = Math.ceil((siguiente.fecha - hoy) / (1000 * 60 * 60 * 24));
+      proximo = `${siguiente.nombre} (${siguiente.fecha.toLocaleDateString()} — en ${dias} día${dias !== 1 ? 's' : ''})`;
+    }
+  }
+
+  // 3️⃣ Cumpleaños este mes
+  const mesActual = new Date().getMonth();
+  const cumpleMes = clients.filter(c => {
+    if (!c.fechaCumple) return false;
+    const f = new Date(c.fechaCumple);
+    return f.getMonth() === mesActual;
+  }).length;
+
+  container.innerHTML = `
+    <div class="kpi-card">
+      <h3>Total de clientes</h3>
+      <p>${total}</p>
+    </div>
+    <div class="kpi-card">
+      <h3>Próximo cumpleaños</h3>
+      <p>${proximo}</p>
+    </div>
+    <div class="kpi-card">
+      <h3>Cumpleaños este mes</h3>
+      <p>${cumpleMes}</p>
+    </div>
+  `;
+}
+
+/* ===========================
+   Refresco unificado
+   =========================== */
+function refreshClientsUI() {
+  renderClientsTable();
+  renderClientKPIs();
+}
+
+/* ===========================
+   Hook universal (garantiza reactividad)
+   =========================== */
+
+// Guarda referencia original
+const __originalSaveClients = window.saveClients;
+
+// Sobrescribe saveClients para refrescar automáticamente
+window.saveClients = function (arr) {
+  __originalSaveClients(arr);
+  refreshClientsUI(); // 🔁 actualiza inmediatamente sin evento
+};
+
+// Cada vez que el modal guarda, edita o borra, también refresca
+document.addEventListener('click', (e) => {
+  if (e.target.matches('#addClientBtn, [data-action="edit-client"], [data-action="delete-client"]')) {
+    // Damos un pequeño retardo por si el modal aún no cierra
+    setTimeout(() => refreshClientsUI(), 120);
+  }
+});
+
+// También al cambiar de pestaña "Clientes"
+$$('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.tab === 'clients') {
+      setTimeout(() => refreshClientsUI(), 100);
+    }
+  });
+});
+
+// Render inicial
+if (document.querySelector('#clients') && !document.querySelector('#clients').classList.contains('hidden')) {
+  refreshClientsUI();
+}
