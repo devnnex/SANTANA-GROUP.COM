@@ -596,3 +596,289 @@ option {
 option:hover {
   background-color: rgba(176, 70, 255, 0.2);
 }
+
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 12px 0 24px;
+}
+
+.kpi-card {
+  background: var(--card-bg, #fff);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  text-align: center;
+}
+
+.kpi-card h3 {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.kpi-card p {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--primary, #222);
+}
+
+
+
+
+/* === KPIs de Clientes — Neon Style === */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 12px 0 24px;
+}
+
+/* 🎇 Tarjetas base */
+.kpi-card {
+  position: relative;
+  background: linear-gradient(145deg, #0a0a0f, #15151f);
+  color: #e4e4e4;
+  border-radius: 14px;
+  padding: 18px;
+  text-align: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease;
+}
+
+/* 💡 Brillo neón sutil en hover */
+.kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.2),
+              0 0 30px rgba(0, 255, 255, 0.15);
+  border-color: rgba(0, 255, 255, 0.4);
+}
+
+/* 🌈 Bordes neón diferentes por tipo */
+.kpi-card:nth-child(1) {
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.15);
+  border: 1px solid rgba(0, 255, 255, 0.25);
+}
+.kpi-card:nth-child(1):hover {
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+}
+
+.kpi-card:nth-child(2) {
+  box-shadow: 0 0 8px rgba(255, 0, 255, 0.15);
+  border: 1px solid rgba(255, 0, 255, 0.25);
+}
+.kpi-card:nth-child(2):hover {
+  box-shadow: 0 0 20px rgba(255, 0, 255, 0.4);
+}
+
+.kpi-card:nth-child(3) {
+  box-shadow: 0 0 8px rgba(255, 140, 0, 0.15);
+  border: 1px solid rgba(255, 140, 0, 0.25);
+}
+.kpi-card:nth-child(3):hover {
+  box-shadow: 0 0 20px rgba(255, 140, 0, 0.4);
+}
+
+/* 🧠 Textos */
+.kpi-card h3 {
+  font-size: 0.8rem;
+  color: #9da0b0;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.kpi-card p {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #00fff2;
+  margin: 0;
+  text-shadow: 0 0 6px rgba(0, 255, 255, 0.3);
+}
+
+/* 🔮 Animación suave de brillo */
+@keyframes pulseNeon {
+  0% { box-shadow: 0 0 10px rgba(0,255,255,0.2); }
+  50% { box-shadow: 0 0 20px rgba(0,255,255,0.5); }
+  100% { box-shadow: 0 0 10px rgba(0,255,255,0.2); }
+}
+
+.kpi-card:nth-child(1) {
+  animation: pulseNeon 5s infinite alternate;
+  animation-delay: 0s;
+}
+.kpi-card:nth-child(2) {
+  animation: pulseNeon 5s infinite alternate;
+  animation-delay: 1s;
+}
+.kpi-card:nth-child(3) {
+  animation: pulseNeon 5s infinite alternate;
+  animation-delay: 2s;
+}
+
+
+
+/* === Buscador de Clientes y Botones de Eliminación === */
+
+/* Input de búsqueda */
+#clientSearch {
+  flex: 1;
+  min-width: 200px;
+  max-width: 300px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  color: #e6e6e6;
+  background: rgba(25, 25, 30, 0.8);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  outline: none;
+  transition: all 0.25s ease;
+  box-shadow: inset 0 0 5px rgba(0,0,0,0.6),
+              0 0 6px rgba(127,90,240,0.15);
+}
+
+#clientSearch::placeholder {
+  color: rgba(255,255,255,0.3);
+}
+
+#clientSearch:focus {
+  border-color: #7f5af0;
+  box-shadow: 0 0 10px rgba(127,90,240,0.4);
+  background: rgba(35, 35, 45, 0.9);
+}
+
+/* Botones de eliminar */
+#deleteSelectedClients,
+#deleteAllClients {
+  background: rgba(40,40,50,0.8);
+  color: #ccc;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 0 6px rgba(0,0,0,0.4);
+}
+
+/* Hover general */
+#deleteSelectedClients:hover,
+#deleteAllClients:hover {
+  transform: translateY(-2px);
+  color: #fff;
+}
+
+/* Hover individual con brillo */
+#deleteSelectedClients:hover {
+  border-color: #f39c12;
+  box-shadow: 0 0 8px rgba(243,156,18,0.4);
+  background: rgba(50,50,30,0.9);
+}
+
+#deleteAllClients:hover {
+  border-color: #e74c3c;
+  box-shadow: 0 0 8px rgba(231,76,60,0.4);
+  background: rgba(55,25,25,0.9);
+}
+
+/* Ajuste responsivo */
+@media (max-width: 600px) {
+  #clientSearch {
+    min-width: 100%;
+  }
+  #deleteSelectedClients,
+  #deleteAllClients {
+    width: 100%;
+  }
+}
+
+
+.login-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.login-btn {
+  background: #00bcd4;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.login-btn:hover {
+  background: #0097a7;
+}
+
+.login-btn.cancel {
+  background: #444;
+}
+
+.login-btn.cancel:hover {
+  background: #222;
+}
+
+
+
+/* === KPI contenedor === */
+.kpi-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+/* === Contenido horizontal: valor + ojo === */
+.kpi-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* === Valor === */
+.kpi-value {
+  color: #fff;
+  letter-spacing: 2px;
+  font-weight: 700;
+  transition: color 0.2s ease;
+}
+
+.kpi-value[data-visible="false"] {
+  color: #fff;
+  letter-spacing: 3px;
+}
+
+/* === Botón del ojo === */
+.toggle-visibility {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.toggle-visibility:hover {
+  transform: scale(1.15);
+  opacity: 0.8;
+}
+
+/* === Ícono FA === */
+.toggle-visibility i {
+  pointer-events: none;
+}
+
+
