@@ -11,8 +11,10 @@
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css"> 
 
 <!-- FONTAWESOME CDN -->
   <link rel="stylesheet"
@@ -362,5 +364,14 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
 <footer style="text-align:center; padding:10px; color:#aaa;">© 2025 Santana Group</footer>
 
 <script src="app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+<!-- ✅ SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+ 
+    emailjs.init("WG36JQzyb-sxnapxf"); // 👈 Reemplaza con tu Public Key de EmailJS
+  
+</script>
+
 </body>
 </html>
