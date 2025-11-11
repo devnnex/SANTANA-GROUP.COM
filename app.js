@@ -1244,6 +1244,8 @@ $('#refreshAnalysisBtn')?.addEventListener('click', () => {
    MÓDULO CLIENTES (MEJORADO CON BUSCADOR Y ACCIONES)
    =========================== */
 const LS_CLIENTS = 'clientsData';
+
+// Funciones de carga y guardado
 const loadClients = () => JSON.parse(localStorage.getItem(LS_CLIENTS) || '[]');
 const saveClients = (arr) => localStorage.setItem(LS_CLIENTS, JSON.stringify(arr));
 
@@ -1258,7 +1260,7 @@ function renderClientsTable(filter = '') {
 
   if (!clients.length) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td colspan="6" style="text-align:center;opacity:.6;">Sin clientes registrados</td>`;
+    tr.innerHTML = `<td colspan="7" style="text-align:center;opacity:.6;">Sin clientes registrados</td>`;
     tbody.appendChild(tr);
     return;
   }
@@ -1284,12 +1286,87 @@ function renderClientsTable(filter = '') {
         <td>
           <button class="btn ghost" data-id="${c.id}" data-action="edit-client">Editar</button>
           <button class="btn ghost" data-id="${c.id}" data-action="delete-client">Eliminar</button>
-          <button class="btn ghost" data-id="${c.id}" data-action="email-client">📧</button>
+          <button class="btn ghost email-client" data-id="${c.id}">📧 Enviar correo</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
 }
+
+/* === Listener para botón "Enviar correo" === */
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('email-client')) {
+    const id = e.target.dataset.id;
+    const clientes = loadClients(); // ✅ ahora sí existe
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente) return alert('Cliente no encontrado');
+    sendClientEmailForm(cliente);
+  }
+});
+
+/* === Envío de correo con EmailJS === */
+function sendClientEmailForm(cliente) {
+  if (!cliente || !cliente.correo) {
+    return alert("⚠️ No se encontró un correo válido para este cliente.");
+  }
+
+  // ❌ Eliminamos el confirm interno (lo haremos fuera)
+  // if (!confirm(`¿Enviar correo a ${cliente.nombre}?`)) return;
+
+  // Crear formulario invisible
+  const form = document.createElement("form");
+  form.style.display = "none";
+
+  const data = {
+    to_name: cliente.nombre,
+    to_email: cliente.correo,
+    telefono: cliente.telefono || "No registrado",
+    fecha: new Date().toLocaleDateString("es-CO"),
+    year: new Date().getFullYear(),
+  };
+
+  for (const key in data) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = key;
+    input.value = data[key];
+    form.appendChild(input);
+  }
+
+  document.body.appendChild(form);
+
+  emailjs
+    .sendForm("service_klqo261", "template_rt5dymj", form)
+    .then(() =>
+      Swal.fire({
+        icon: "success",
+        title: "¡Correo enviado!",
+        text: `El mensaje fue enviado correctamente a ${cliente.nombre}.`,
+        showConfirmButton: false,
+        timer: 2500,
+        background: "#111",
+        color: "#fff",
+      })
+    )
+    .catch((err) => {
+      console.error("Error al enviar EmailJS:", err);
+      Swal.fire({
+        icon: "error",
+        title: "¡Error al enviar el correo!",
+        text: `No se pudo enviar el correo a ${cliente.nombre}.`,
+        showConfirmButton: false,
+        timer: 2500,
+        background: "#111",
+        color: "#fff",
+      });
+    })
+    .finally(() => form.remove());
+}
+
+
+
+
+
 
 /* === Modal === */
 (function createClientModalOnce() {
@@ -1431,46 +1508,112 @@ $$('.tab-btn').forEach(btn =>
 
 
 /* ===========================
-   KPIs de Clientes (Live Auto Update)
+   KPIs de Clientes (Live Auto Update) — Preciso con fecha bonita
    =========================== */
+
+/* ===========================
+   KPIs de Clientes (flechas + fecha exacta sin desfase)
+   =========================== */
+
+let currentCumpleIndex = 0; // Persistencia entre renderizados
 
 function renderClientKPIs() {
   const container = document.getElementById('clientStats');
   if (!container) return;
-  const clients = loadClients();
 
-  // 1️⃣ Total de clientes
+  const clients = loadClients();
   const total = clients.length;
 
-  // 2️⃣ Próximo cumpleaños
-  let proximo = '—';
-  if (clients.length) {
-    const hoy = new Date();
-    const proximos = clients
-      .filter(c => c.fechaCumple)
-      .map(c => {
-        const fecha = new Date(c.fechaCumple);
-        fecha.setFullYear(hoy.getFullYear());
-        if (fecha < hoy) fecha.setFullYear(hoy.getFullYear() + 1);
-        return { nombre: c.nombre, fecha };
-      })
-      .sort((a, b) => a.fecha - b.fecha);
+  // 📅 Hoy a medianoche (hora local, sin desfases)
+  const hoy = new Date();
+  const hoyLocal = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
 
-    if (proximos.length) {
-      const siguiente = proximos[0];
-      const dias = Math.ceil((siguiente.fecha - hoy) / (1000 * 60 * 60 * 24));
-      proximo = `${siguiente.nombre} (${siguiente.fecha.toLocaleDateString()} — en ${dias} día${dias !== 1 ? 's' : ''})`;
+  // Función robusta para parsear fechas en local
+  const parseFechaLocal = (str) => {
+    if (!str) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      const [y, m, d] = str.split('-').map(Number);
+      return new Date(y, m - 1, d);
     }
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
+      const [d, m, y] = str.split('/').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    const parsed = new Date(str);
+    if (!isNaN(parsed)) return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+    return null;
+  };
+
+  // 📅 Construir lista de próximos cumpleaños
+  const proximos = clients
+    .map(c => {
+      const cumple = parseFechaLocal(c.fechaCumple);
+      if (!cumple) return null;
+
+      let cumpleEsteAño = new Date(hoyLocal.getFullYear(), cumple.getMonth(), cumple.getDate());
+      let diffDias = Math.floor((cumpleEsteAño - hoyLocal) / 86400000);
+
+      // Si ya pasó este año, mover al siguiente
+      if (diffDias < 0) {
+        cumpleEsteAño = new Date(hoyLocal.getFullYear() + 1, cumple.getMonth(), cumple.getDate());
+        diffDias = Math.floor((cumpleEsteAño - hoyLocal) / 86400000);
+      }
+
+      return {
+        id: c.id,
+        nombre: c.nombre,
+        correo: c.correo,
+        telefono: c.telefono,
+        fecha: cumpleEsteAño,
+        dias: diffDias
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.dias - b.dias);
+
+  if (currentCumpleIndex >= proximos.length) currentCumpleIndex = 0;
+
+  // 💬 Mostrar cumpleaños actual
+  let proximoHTML = '—';
+  if (proximos.length) {
+    const cliente = proximos[currentCumpleIndex];
+    const fechaBonita = cliente.fecha.toLocaleDateString('es-CO', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+
+    let texto;
+    if (cliente.dias === 0) texto = `🎉 ${cliente.nombre} (${fechaBonita} — ¡Hoy!)`;
+    else if (cliente.dias === 1) texto = `${cliente.nombre} (${fechaBonita} — en 1 día)`;
+    else texto = `${cliente.nombre} (${fechaBonita} — en ${cliente.dias} días)`;
+
+    // 📨 Agregamos botón de enviar correo aquí 👇
+    const botonCorreo = cliente.correo
+      ? `<button class="btn ghost email-client" data-id="${cliente.id}" style="margin-top:6px;">📧 Enviar correo</button>`
+      : `<p style="opacity:.6;margin-top:6px;">(Sin correo registrado)</p>`;
+
+    proximoHTML = `
+      <div class="cumple-navegador" style="flex-direction:column;gap:6px;">
+        <div style="display:flex;align-items:center;justify-content:center;gap:0.5em;">
+          <button class="nav-btn" id="prevCumple" ${currentCumpleIndex === 0 ? 'disabled' : ''}>⬅️</button>
+          <span>${texto}</span>
+          <button class="nav-btn" id="nextCumple" ${currentCumpleIndex === proximos.length - 1 ? 'disabled' : ''}>➡️</button>
+        </div>
+        ${botonCorreo}
+      </div>
+    `;
   }
 
-  // 3️⃣ Cumpleaños este mes
-  const mesActual = new Date().getMonth();
+  // 🎂 Cumpleaños este mes
+  const mesActual = hoyLocal.getMonth();
   const cumpleMes = clients.filter(c => {
-    if (!c.fechaCumple) return false;
-    const f = new Date(c.fechaCumple);
-    return f.getMonth() === mesActual;
+    const f = parseFechaLocal(c.fechaCumple);
+    return f && f.getMonth() === mesActual;
   }).length;
 
+  // 🧩 Renderizar KPIs
   container.innerHTML = `
     <div class="kpi-card">
       <h3>Total de clientes</h3>
@@ -1478,14 +1621,61 @@ function renderClientKPIs() {
     </div>
     <div class="kpi-card">
       <h3>Próximo cumpleaños</h3>
-      <p>${proximo}</p>
+      <div id="proximoCumpleContainer">${proximoHTML}</div>
     </div>
     <div class="kpi-card">
       <h3>Cumpleaños este mes</h3>
       <p>${cumpleMes}</p>
     </div>
   `;
+
+  // 🧭 Conectar botones navegación
+  const prevBtn = document.getElementById('prevCumple');
+  const nextBtn = document.getElementById('nextCumple');
+
+  if (prevBtn) prevBtn.onclick = () => {
+    if (currentCumpleIndex > 0) {
+      currentCumpleIndex--;
+      renderClientKPIs();
+    }
+  };
+
+  if (nextBtn) nextBtn.onclick = () => {
+    if (currentCumpleIndex < proximos.length - 1) {
+      currentCumpleIndex++;
+      renderClientKPIs();
+    }
+  };
+
+  // ✉️ Conectar botón de enviar correo (reutiliza tu función existente)
+  const emailBtn = container.querySelector('.email-client');
+  if (emailBtn) {
+  emailBtn.addEventListener(
+    "click",
+    (e) => {
+      e.stopPropagation();
+      const id = emailBtn.dataset.id;
+      const cliente = clients.find((c) => c.id === id);
+
+      if (!cliente) {
+        return alert("Cliente no encontrado");
+      }
+
+      // ✅ Solo una confirmación aquí
+      if (confirm(`¿Enviar correo a ${cliente.nombre}?`)) {
+        sendClientEmailForm(cliente);
+      }
+    },
+    { once: true } // previene listeners duplicados al re-renderizar
+  );
 }
+
+
+}
+
+
+
+
 
 /* ===========================
    Refresco unificado
