@@ -298,36 +298,77 @@ function renderSalesTable(filter = '') {
   const tbody = $('#salesTable tbody');
   if (!tbody) return;
   tbody.innerHTML = '';
+
+  const kpiBox = $('#salesKpiBox');
+  if (!kpiBox) return;
+
   const q = (filter || '').trim().toLowerCase();
   const sales = loadSales();
 
-  sales
-    .filter(s => {
-      if (!q) return true;
-      return (s.name || '').toLowerCase().includes(q) || (s.brand || '').toLowerCase().includes(q) || (s.method1 || '').toLowerCase().includes(q);
-    })
-    .forEach(s => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-  <td><input type="checkbox" class="sale-select" data-id="${s.id}"></td>
-  <td>${esc(s.name)}</td>
-  <td>${esc(s.brand||'')}</td>
-  <td>${s.qty}</td>
-  <td>${formatCurrency(s.total)}</td>
-  
-  <td>
-    ${esc(s.method1 || '')}
-    ${s.amount1 ? `<div style="font-size:0.8em;color:#45d37a;">${formatCurrency(s.amount1)}</div>` : ''}
-  </td>
-  <td>
-    ${esc(s.method2 || '')}
-    ${s.amount2 ? `<div style="font-size:0.8em;color:#45d37a;">${formatCurrency(s.amount2)}</div>` : ''}
-  </td>
-  <td>${dateReadable(s.timestamp)}</td>
-`;
-      tbody.appendChild(tr);
-    });
+  // === FILTRAR ===
+  const filtered = sales.filter(s => {
+    if (!q) return true;
+    return (
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.brand || '').toLowerCase().includes(q) ||
+      (s.method1 || '').toLowerCase().includes(q) ||
+      (s.method2 || '').toLowerCase().includes(q)
+    );
+  });
+
+  // === CALCULAR KPI GENERAL ===
+  const totalGeneral = filtered.reduce((sum, s) => sum + (s.total || 0), 0);
+
+  // === MÉTODOS DE PAGO A CONTROLAR ===
+  const metodos = ["Efectivo", "Transferencia", "Datafono", "Sistecredito", "Addi"];
+
+  // === CALCULAR TOTAL POR MÉTODO ===
+  const totales = {};
+  metodos.forEach(m => totales[m] = 0);
+
+  filtered.forEach(s => {
+    if (metodos.includes(s.method1)) totales[s.method1] += (s.amount1 || 0);
+    if (metodos.includes(s.method2)) totales[s.method2] += (s.amount2 || 0);
+  });
+
+  // === MOSTRAR KPI ===
+  kpiBox.innerHTML = `
+    <div><strong>Total ventas ${q ? '(filtradas)' : '(del día)'}:</strong> ${formatCurrency(totalGeneral)}</div>
+
+    <div style="margin-top:6px; font-size:0.92em; opacity:0.85; line-height:1.6;">
+      Efectivo: ${formatCurrency(totales.Efectivo)} &nbsp;|&nbsp;
+      Transferencia: ${formatCurrency(totales.Transferencia)} &nbsp;|&nbsp;
+      Datafono: ${formatCurrency(totales.Datafono)} &nbsp;|&nbsp;
+      Sistecredito: ${formatCurrency(totales.Sistecredito)} &nbsp;|&nbsp;
+      Addi: ${formatCurrency(totales.Addi)}
+    </div>
+  `;
+
+  // === PINTAR TABLA ===
+  filtered.forEach(s => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="checkbox" class="sale-select" data-id="${s.id}"></td>
+      <td>${esc(s.name)}</td>
+      <td>${esc(s.brand||'')}</td>
+      <td>${s.qty}</td>
+      <td>${formatCurrency(s.total)}</td>
+      
+      <td>
+        ${esc(s.method1 || '')}
+        ${s.amount1 ? `<div style="font-size:0.8em;color:#45d37a;">${formatCurrency(s.amount1)}</div>` : ''}
+      </td>
+      <td>
+        ${esc(s.method2 || '')}
+        ${s.amount2 ? `<div style="font-size:0.8em;color:#45d37a;">${formatCurrency(s.amount2)}</div>` : ''}
+      </td>
+      <td>${dateReadable(s.timestamp)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
+
+
 
 /* ---------- Sold table: only products fully sold (qty === 0 && sold > 0) ---------- */
 function renderSoldTable() {
