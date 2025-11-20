@@ -371,6 +371,19 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
 <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 <!-- ✅ SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+<script>
+  Swal.fire({
+    icon: 'success',
+    title: '¡Éxito!',
+    text: 'Se ha hecho una actualización en la sesión de ventas!',
+    showConfirmButton: true,
+    confirmButtonText: 'Ok',
+    timer: 4000,            // opcional: cierra automáticamente después de 4s
+    timerProgressBar: true, // muestra barra de progreso si usas timer
+    backdrop: true
+  });
+</script>
 <script>
  
     emailjs.init("WG36JQzyb-sxnapxf"); // 👈 Reemplaza con tu Public Key de EmailJS
@@ -379,3 +392,4 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
 
 </body>
 </html>
+
