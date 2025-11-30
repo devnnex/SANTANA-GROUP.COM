@@ -127,102 +127,249 @@ function ensureUiExtras() {
   }
 
   // Sell modal
-  if (!$('#sellOverlay')) {
-    const sellHtml = `
-      <div id="sellOverlay" class="modal-overlay hidden" style="display:none;">
-        <div class="modal card" id="sellModal" style="max-width:420px;">
-          <button id="closeSellModal" class="modal-close">✕</button>
-          <h2>Vender Producto</h2>
-          <form id="sellForm" class="form-grid">
-            <div id="sellProductInfo" style="font-weight:600;margin-bottom:6px;"></div>
-            <label>Cantidad*<input id="sell_qty" type="number" min="1" value="1" required /></label>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <div style="flex:1;">
-                <label>Método de Pago 1
-                  <select id="paymentMethod1">
-                    <option value="Efectivo">Efectivo</option><option value="Transferencia">Transferencia</option><option value="Datafono">Datafono</option>
-                    <option value="Sistecredito">Sistecredito</option><option value="Addi">Addi</option>
-                  </select>
-                </label>
-                <label>Monto 1<input id="amount1" type="number" min="0" value="0" /></label>
-              </div>
-              <div style="flex:1;">
-                <label>Método de Pago 2
-                  <select id="paymentMethod2">
-                    <option value="">Ninguno</option><option value="Efectivo">Efectivo</option><option value="Transferencia">Transferencia</option><option value="Datafono">Datafono</option><option value="Sistecredito">Sistecredito</option><option value="Addi">Addi</option>
-                  </select>
-                </label>
-                <label>Monto 2<input id="amount2" type="number" min="0" value="0" /></label>
-              </div>
+ // === Modal de venta (reemplaza tu bloque actual) ===
+// === Modal de venta (reemplaza tu bloque actual) ===
+if (!document.getElementById('sellOverlay')) {
+  const sellHtml = `
+    <div id="sellOverlay" class="modal-overlay hidden" style="display:none;">
+      <div class="modal card" id="sellModal" style="max-width:420px;">
+        <button id="closeSellModal" class="modal-close">✕</button>
+        <h2>Vender Producto</h2>
+        <form id="sellForm" class="form-grid">
+          <div id="sellProductInfo" style="font-weight:600;margin-bottom:6px;"></div>
+
+          <label>Cantidad*
+            <input id="sell_qty" type="number" min="1" value="1" required />
+          </label>
+
+          <label>Descuento
+            <select id="sell_discount">
+              <option value="0">Sin descuento</option>
+              <option value="50000">$50.000 Descuento</option>
+            </select>
+          </label>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="flex:1;">
+              <label>Método de Pago 1
+                <select id="paymentMethod1">
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Datafono">Datafono</option>
+                  <option value="Sistecredito">Sistecredito</option>
+                  <option value="Addi">Addi</option>
+                </select>
+              </label>
+              <label>Monto 1<input id="amount1" type="number" min="0" value="0" /></label>
             </div>
-            <div class="totalDisplay" style="margin-top:6px;">Total Venta: $0</div>
-            <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
-              <button type="button" id="cancelSell" class="btn ghost">Cancelar</button>
-              <button type="submit" class="btn primary">Confirmar Venta</button>
+
+            <div style="flex:1;">
+              <label>Método de Pago 2
+                <select id="paymentMethod2">
+                  <option value="">Ninguno</option>
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Datafono">Datafono</option>
+                  <option value="Sistecredito">Sistecredito</option>
+                  <option value="Addi">Addi</option>
+                </select>
+              </label>
+              <label>Monto 2<input id="amount2" type="number" min="0" value="0" /></label>
             </div>
-          </form>
-        </div>
-      </div>`;
-    document.body.insertAdjacentHTML('beforeend', sellHtml);
-    $('#sellOverlay').style.display = '';
+          </div>
 
-    // Añadir listeners del formulario de venta una vez creado
-const sellForm = $('#sellForm');
-if (sellForm && !sellForm.__listenersAttached) {
-  sellForm.addEventListener('input', updateSellTotals);
+          <div class="totalDisplay" style="margin-top:6px;">Total Venta: $0</div>
 
-  sellForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (!sellingProductId) return alert('Producto no seleccionado');
-    const qty = Math.max(0, Number($('#sell_qty').value) || 0);
-    if (qty <= 0) return alert('Cantidad inválida');
-    const products = loadProducts();
-    const idx = products.findIndex(p => p.id === sellingProductId);
-    if (idx === -1) return alert('Producto no encontrado');
-    const prod = products[idx];
-    if (qty > prod.qty) return alert('Stock insuficiente');
+          <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+            <button type="button" id="cancelSell" class="btn ghost">Cancelar</button>
+            <button type="submit" class="btn primary">Confirmar Venta</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', sellHtml);
+  $('#sellOverlay').style.display = '';
 
-    const unit = computeUnitPrice(prod);
-    const total = unit * qty;
-    const profit = (unit - (prod.cost || 0)) * qty;
+  // === inicialización y listeners ===
+  (function initSellModal() {
+    if (window.__sellModalInitialized) return;
+    window.__sellModalInitialized = true;
 
-    let amount1 = Number($('#amount1').value) || 0;
-    let amount2 = Number($('#amount2').value) || 0;
-    if (amount1 > total) amount1 = total;
-    if (amount1 + amount2 > total) amount2 = total - amount1;
+    const sellForm = $('#sellForm');
+    const sellQty = $('#sell_qty');
+    const sellDiscount = $('#sell_discount');
+    const totalDisplay = document.querySelector('#sellForm .totalDisplay');
+    const sellProductInfo = $('#sellProductInfo');
+    const amount1 = $('#amount1');
+    const amount2 = $('#amount2');
 
-    // Actualizar inventario
-    prod.qty = Math.max(0, prod.qty - qty);
-    prod.sold = (prod.sold || 0) + qty;
-    products[idx] = prod;
-    saveProducts(products);
+    // Para detectar si el usuario ya escribió manualmente
+    let userEdited1 = false;
+    let userEdited2 = false;
 
-    // Registrar venta
-    const sales = loadSales();
-    sales.unshift({
-      id: cryptoId(),
-      productId: prod.id,
-      name: prod.name,
-      brand: prod.brand || '',
-      qty,
-      total,
-      profit,
-      method1: $('#paymentMethod1').value || 'Efectivo',
-      amount1,
-      method2: $('#paymentMethod2').value || '',
-      amount2,
-      timestamp: nowISO()
+    amount1.addEventListener('input', () => {
+      userEdited1 = true;
+      adjustAmounts();
     });
-    saveSales(sales);
 
-    hide('#sellOverlay');
-    renderAll();
-  });
+    amount2.addEventListener('input', () => {
+      userEdited2 = true;
+      adjustAmounts();
+    });
 
-  sellForm.__listenersAttached = true;
+    function adjustAmounts() {
+      const total = getCurrentTotal();
+
+      let a1 = Number(amount1.value) || 0;
+      let a2 = Number(amount2.value) || 0;
+
+      if (a1 < 0) a1 = 0;
+      if (a2 < 0) a2 = 0;
+
+      if (a1 > total) a1 = total;
+      if (a1 + a2 > total) a2 = total - a1;
+
+      amount1.value = a1;
+      amount2.value = a2;
+    }
+
+    function getCurrentTotal() {
+      const products = loadProducts();
+      const prod = products.find(p => p.id === window.sellingProductId);
+      if (!prod) return 0;
+
+      const unit = (typeof computeUnitPrice === 'function')
+        ? computeUnitPrice(prod)
+        : Math.round((prod.cost || 0) * (1 + (prod.marginPercent || 0) / 100));
+
+      const qty = Math.max(1, Number(sellQty.value) || 1);
+      const discount = Number(sellDiscount.value) || 0;
+
+      let total = unit * qty - discount;
+      if (total < 0) total = 0;
+      return total;
+    }
+
+    function updateSellTotals() {
+      const total = getCurrentTotal();
+
+      totalDisplay.textContent = `Total Venta: ${formatCurrency(total)}`;
+
+      // Si el usuario NO ha modificado los inputs → monto1 sigue el total
+      if (!userEdited1 && !userEdited2) {
+        amount1.value = total;
+        amount2.value = 0;
+      } else {
+        // Si ya tocó montos → ajustar sin perder intención del usuario
+        adjustAmounts();
+      }
+    }
+
+    // Eventos dinámicos
+    sellQty.addEventListener('input', () => {
+      if (Number(sellQty.value) < 1) sellQty.value = 1;
+      updateSellTotals();
+    });
+
+    sellDiscount.addEventListener('change', () => {
+      updateSellTotals();
+    });
+
+    // Abrir modal desde botones
+    document.addEventListener('click', (ev) => {
+      const btn = ev.target.closest?.('.sell-btn');
+      if (!btn) return;
+
+      const id = btn.dataset.id;
+      const products = loadProducts();
+      const prod = products.find(p => p.id === id);
+      if (!prod) return;
+
+      window.sellingProductId = id;
+
+      userEdited1 = false;
+      userEdited2 = false;
+
+      sellProductInfo.textContent = `${prod.name} ${prod.brand ? `(${prod.brand})` : ''}`;
+
+      const qtyElem = document.querySelector(`.qty-display[data-id="${id}"]`);
+      sellQty.value = Math.max(1, Number(qtyElem?.textContent) || 1);
+
+      sellDiscount.value = "0";
+      amount1.value = 0;
+      amount2.value = 0;
+
+      updateSellTotals();
+      show('#sellOverlay');
+    });
+
+    // Cerrar modal
+    $('#cancelSell').addEventListener('click', () => hide('#sellOverlay'));
+    $('#closeSellModal').addEventListener('click', () => hide('#sellOverlay'));
+
+    // Submit venta
+    sellForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const id = window.sellingProductId;
+      const products = loadProducts();
+      const idx = products.findIndex(p => p.id === id);
+      const prod = products[idx];
+
+      const qty = Math.max(1, Number(sellQty.value));
+      const unit = (typeof computeUnitPrice === 'function')
+        ? computeUnitPrice(prod)
+        : Math.round((prod.cost || 0) * (1 + (prod.marginPercent || 0) / 100));
+
+      const discount = Number(sellDiscount.value) || 0;
+
+      let total = unit * qty - discount;
+      if (total < 0) total = 0;
+
+      let a1 = Number(amount1.value) || 0;
+      let a2 = Number(amount2.value) || 0;
+
+      if (a1 > total) a1 = total;
+      if (a1 + a2 > total) a2 = total - a1;
+
+      const profit = (unit - (prod.cost || 0)) * qty - discount;
+
+      // Actualizar inventario
+      prod.qty -= qty;
+      prod.sold = (prod.sold || 0) + qty;
+      products[idx] = prod;
+      saveProducts(products);
+
+      // Guardar venta
+      const sales = loadSales();
+      sales.unshift({
+        id: cryptoId(),
+        productId: prod.id,
+        name: prod.name,
+        brand: prod.brand || '',
+        qty,
+        total,
+        discount,
+        profit,
+        method1: $('#paymentMethod1').value,
+        amount1: a1,
+        method2: $('#paymentMethod2').value,
+        amount2: a2,
+        timestamp: nowISO()
+      });
+
+      saveSales(sales);
+
+      hide('#sellOverlay');
+      renderAll();
+    });
+  })();
 }
 
-  }
+
+
+
 
  // Ensure brandAnalysisTable exists inside analysis; if not, create a card with it
 if (!$('#brandAnalysisTable')) {
@@ -258,40 +405,135 @@ function hide(selector) { const el = document.querySelector(selector); if (el) e
 
 /* ---------- Inventory rendering ---------- */
 function renderInventoryTable(filter = '') {
+  // Crear contenedor del total si no existe
+  let totalBox = document.getElementById('totalPagarContainer');
+  if (!totalBox) {
+    totalBox = document.createElement('div');
+    totalBox.id = 'totalPagarContainer';
+    totalBox.style.fontSize = '18px';
+    totalBox.style.fontWeight = '600';
+    totalBox.style.marginBottom = '10px';
+    totalBox.innerHTML = `Total a pagar: <span id="totalPagar">$ 0</span>`;
+    const table = document.getElementById('inventoryTable');
+    table.parentNode.insertBefore(totalBox, table);
+  }
+
   const tbody = $('#inventoryTable tbody');
   if (!tbody) return;
   tbody.innerHTML = '';
+
   const q = (filter || '').trim().toLowerCase();
   const products = loadProducts();
 
-  // Only show products with qty > 0 in inventory
   products
     .filter(p => (p.qty || 0) > 0)
     .filter(p => {
       if (!q) return true;
-      return (p.name || '').toLowerCase().includes(q) || (p.brand || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q);
+      return (p.name || '').toLowerCase().includes(q) ||
+             (p.brand || '').toLowerCase().includes(q) ||
+             (p.category || '').toLowerCase().includes(q);
     })
     .forEach(p => {
-      const price = Math.round((p.cost || 0) * (1 + (p.marginPercent || 0)/100));
+      const price = Math.round((p.cost || 0) * (1 + (p.marginPercent || 0) / 100));
+
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><input class="row-select" data-id="${p.id}" type="checkbox"></td>
+        <td>
+          <input class="row-select" data-id="${p.id}" data-price="${price}" type="checkbox">
+        </td>
         <td>${esc(p.name)}</td>
-        <td>${esc(p.brand||'')}</td>
+        <td>${esc(p.brand || '')}</td>
         <td>${formatCurrency(price)}</td>
         <td>${p.qty}</td>
-        <td style="color:#45d37a">${p.sold||0}</td>
+        <td style="color:#45d37a">${p.sold || 0}</td>
         <td>
+          <button class="qty-btn" style="padding:4px 8px;" data-action="minus" data-id="${p.id}">-</button>
+          <span class="qty-display" data-id="${p.id}">0</span>
+          <button class="qty-btn" style="padding:4px 8px; margin-right:3px;" data-action="plus" data-id="${p.id}">+</button>
+
           <button class="btn ghost sell-btn" data-id="${p.id}">Vender</button>
           <button class="btn ghost edit-btn" data-id="${p.id}">Editar</button>
           <button class="btn ghost delete-btn" data-id="${p.id}">Eliminar</button>
         </td>
       `;
+
       tbody.appendChild(tr);
     });
 
-  updateSelectedCount();
+  // ====================================================
+  // SISTEMA DE SELECCIÓN + CANTIDADES + TOTAL INTEGRADO
+  // ====================================================
+
+  // Función interna para actualizar total
+  const updateTotal = () => {
+    let total = 0;
+
+    document.querySelectorAll('.row-select:checked').forEach(chk => {
+      const id = chk.dataset.id;
+      const price = Number(chk.dataset.price);
+      const qty = Number(document.querySelector(`.qty-display[data-id="${id}"]`).textContent);
+      total += qty * price;
+    });
+
+    document.getElementById('totalPagar').textContent = formatCurrency(total);
+  };
+
+  // Cuando seleccionan checkbox → cantidad = 1
+  document.querySelectorAll('.row-select').forEach(chk => {
+    chk.addEventListener('change', () => {
+      const id = chk.dataset.id;
+      const display = document.querySelector(`.qty-display[data-id="${id}"]`);
+
+      if (chk.checked) {
+        display.textContent = 1;  // cantidad inicial
+      } else {
+        display.textContent = 0;  // desmarcar reinicia
+      }
+
+      updateTotal();
+    });
+  });
+
+  // Botones − y +
+  document.querySelectorAll('.qty-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+
+      const chk = document.querySelector(`.row-select[data-id="${id}"]`);
+      const display = document.querySelector(`.qty-display[data-id="${id}"]`);
+
+      let qty = Number(display.textContent);
+
+      // EFECTO DE CLICK (morado con texto blanco)
+      btn.style.background = '#6a0dad';
+      btn.style.color = 'white';
+      setTimeout(() => {
+        btn.style.background = '';
+        btn.style.color = '';
+      }, 150);
+
+      if (action === 'plus') {
+        if (!chk.checked) chk.checked = true; // auto-activa si estaba apagado
+        qty++;
+      } else if (action === 'minus' && qty > 1) {
+        qty--;
+      } else if (action === 'minus' && qty === 1) {
+        qty = 0;
+        chk.checked = false; // si llega a 0, desactiva item
+      }
+
+      display.textContent = qty;
+      updateTotal();
+    });
+  });
+
+  updateTotal(); // por si queda algo marcado
 }
+
+
+
+
 
 /* ---------- Sales rendering ---------- */
 /* ---------- Sales rendering ---------- */
@@ -311,7 +553,6 @@ function renderSalesTable(filter = '') {
   ======================================================== */
   const now = new Date();
 
-  // Bogotá = UTC-5
   const bogotaDate = new Date(
     now.toLocaleString("en-US", { timeZone: "America/Bogota" })
   );
@@ -320,13 +561,11 @@ function renderSalesTable(filter = '') {
   const m = bogotaDate.getMonth();
   const d = bogotaDate.getDate();
 
-  // Inicio del día Bogotá
   const startDay = new Date(Date.UTC(y, m, d, 5, 0, 0));
-  // Fin del día Bogotá
   const endDay = new Date(Date.UTC(y, m, d + 1, 5, 0, 0));
 
   /* =======================================================
-      2. Filtrar ventas SOLO del día actual (para KPI)
+      2. Ventas solo del día para KPI
   ======================================================== */
   const salesToday = allSales.filter(s => {
     if (!s.timestamp) return false;
@@ -335,7 +574,7 @@ function renderSalesTable(filter = '') {
   });
 
   /* =======================================================
-      3. Filtrar tabla por texto, NO por fecha
+      3. Filtrado de tabla
   ======================================================== */
   const filteredTable = allSales.filter(s => {
     if (!q) return true;
@@ -348,7 +587,7 @@ function renderSalesTable(filter = '') {
   });
 
   /* =======================================================
-      4. KPI – Totales del día por método de pago
+      4. KPI
   ======================================================== */
   const totalGeneral = salesToday.reduce((sum, s) => sum + (s.total || 0), 0);
 
@@ -388,6 +627,9 @@ function renderSalesTable(filter = '') {
       <td>${s.qty}</td>
       <td>${formatCurrency(s.total)}</td>
 
+      <!-- NUEVA COLUMNA: DESCUENTO -->
+      <td>${formatCurrency(s.discount || 0)}</td>
+
       <td>
         ${esc(s.method1 || '')}
         ${s.amount1 ? `<div style="font-size:0.8em;color:#45d37a;">${formatCurrency(s.amount1)}</div>` : ''}
@@ -403,6 +645,7 @@ function renderSalesTable(filter = '') {
     tbody.appendChild(tr);
   });
 }
+
 
 
 
