@@ -142,11 +142,9 @@ if (!document.getElementById('sellOverlay')) {
             <input id="sell_qty" type="number" min="1" value="1" required />
           </label>
 
+          <!-- 🔥 CAMBIO: Select → Input number (mismo id sell_discount) -->
           <label>Descuento
-            <select id="sell_discount">
-              <option value="0">Sin descuento</option>
-              <option value="50000">$50.000 Descuento</option>
-            </select>
+            <input id="sell_discount" type="number" min="0" value="0" />
           </label>
 
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -198,7 +196,7 @@ if (!document.getElementById('sellOverlay')) {
 
     const sellForm = $('#sellForm');
     const sellQty = $('#sell_qty');
-    const sellDiscount = $('#sell_discount');
+    const sellDiscount = $('#sell_discount'); // sigue funcionando
     const totalDisplay = document.querySelector('#sellForm .totalDisplay');
     const sellProductInfo = $('#sellProductInfo');
     const amount1 = $('#amount1');
@@ -259,7 +257,11 @@ if (!document.getElementById('sellOverlay')) {
       updateSellTotals();
     });
 
-    sellDiscount.addEventListener('change', updateSellTotals);
+    // 🔥 Listener actualizado para input numérico del descuento
+    sellDiscount.addEventListener('input', () => {
+      if (Number(sellDiscount.value) < 0) sellDiscount.value = 0;
+      updateSellTotals();
+    });
 
     document.addEventListener('click', (ev) => {
       const btn = ev.target.closest?.('.sell-btn');
@@ -345,26 +347,18 @@ if (!document.getElementById('sellOverlay')) {
 
       saveSales(sales);
 
-      // === RESETEAR SELECCIÓN DEL PRODUCTO VENDIDO ===
+      // Reset selección
       const STATE_KEY = "inventory_selection_state";
       const savedState = JSON.parse(localStorage.getItem(STATE_KEY) || "{}");
-
       delete savedState[id];
-
       localStorage.setItem(STATE_KEY, JSON.stringify(savedState));
 
-      // Refrescar tabla y total
       renderInventoryTable();
-
       hide('#sellOverlay');
       renderAll();
     });
   })();
 }
-
-
-
-
 
 
  // Ensure brandAnalysisTable exists inside analysis; if not, create a card with it
