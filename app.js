@@ -160,7 +160,7 @@ if (!document.getElementById('sellOverlay')) {
                   <option value="Addi">Addi</option>
                 </select>
               </label>
-              <label>Monto 1<input id="amount1" type="number" min="0" value="0" /></label>
+              <label>Monto 1><input id="amount1" type="number" min="0" value="0" /></label>
             </div>
 
             <div style="flex:1;">
@@ -174,7 +174,7 @@ if (!document.getElementById('sellOverlay')) {
                   <option value="Addi">Addi</option>
                 </select>
               </label>
-              <label>Monto 2<input id="amount2" type="number" min="0" value="0" /></label>
+              <label>Monto 2><input id="amount2" type="number" min="0" value="0" /></label>
             </div>
           </div>
 
@@ -204,19 +204,11 @@ if (!document.getElementById('sellOverlay')) {
     const amount1 = $('#amount1');
     const amount2 = $('#amount2');
 
-    // Para detectar si el usuario ya escribió manualmente
     let userEdited1 = false;
     let userEdited2 = false;
 
-    amount1.addEventListener('input', () => {
-      userEdited1 = true;
-      adjustAmounts();
-    });
-
-    amount2.addEventListener('input', () => {
-      userEdited2 = true;
-      adjustAmounts();
-    });
+    amount1.addEventListener('input', () => { userEdited1 = true; adjustAmounts(); });
+    amount2.addEventListener('input', () => { userEdited2 = true; adjustAmounts(); });
 
     function adjustAmounts() {
       const total = getCurrentTotal();
@@ -247,36 +239,28 @@ if (!document.getElementById('sellOverlay')) {
       const discount = Number(sellDiscount.value) || 0;
 
       let total = unit * qty - discount;
-      if (total < 0) total = 0;
-      return total;
+      return total < 0 ? 0 : total;
     }
 
     function updateSellTotals() {
       const total = getCurrentTotal();
-
       totalDisplay.textContent = `Total Venta: ${formatCurrency(total)}`;
 
-      // Si el usuario NO ha modificado los inputs → monto1 sigue el total
       if (!userEdited1 && !userEdited2) {
         amount1.value = total;
         amount2.value = 0;
       } else {
-        // Si ya tocó montos → ajustar sin perder intención del usuario
         adjustAmounts();
       }
     }
 
-    // Eventos dinámicos
     sellQty.addEventListener('input', () => {
       if (Number(sellQty.value) < 1) sellQty.value = 1;
       updateSellTotals();
     });
 
-    sellDiscount.addEventListener('change', () => {
-      updateSellTotals();
-    });
+    sellDiscount.addEventListener('change', updateSellTotals);
 
-    // Abrir modal desde botones
     document.addEventListener('click', (ev) => {
       const btn = ev.target.closest?.('.sell-btn');
       if (!btn) return;
@@ -291,7 +275,8 @@ if (!document.getElementById('sellOverlay')) {
       userEdited1 = false;
       userEdited2 = false;
 
-      sellProductInfo.textContent = `${prod.name} ${prod.brand ? `(${prod.brand})` : ''}`;
+      sellProductInfo.textContent =
+        `${prod.name} ${prod.brand ? `(${prod.brand})` : ''}`;
 
       const qtyElem = document.querySelector(`.qty-display[data-id="${id}"]`);
       sellQty.value = Math.max(1, Number(qtyElem?.textContent) || 1);
@@ -304,11 +289,10 @@ if (!document.getElementById('sellOverlay')) {
       show('#sellOverlay');
     });
 
-    // Cerrar modal
     $('#cancelSell').addEventListener('click', () => hide('#sellOverlay'));
     $('#closeSellModal').addEventListener('click', () => hide('#sellOverlay'));
 
-    // Submit venta
+    // ============ SUBMIT NUEVO (con reset de selección integrada) ============
     sellForm.addEventListener('submit', (e) => {
       e.preventDefault();
 
@@ -341,7 +325,7 @@ if (!document.getElementById('sellOverlay')) {
       products[idx] = prod;
       saveProducts(products);
 
-      // Guardar venta
+      // Registrar venta
       const sales = loadSales();
       sales.unshift({
         id: cryptoId(),
@@ -361,11 +345,23 @@ if (!document.getElementById('sellOverlay')) {
 
       saveSales(sales);
 
+      // === RESETEAR SELECCIÓN DEL PRODUCTO VENDIDO ===
+      const STATE_KEY = "inventory_selection_state";
+      const savedState = JSON.parse(localStorage.getItem(STATE_KEY) || "{}");
+
+      delete savedState[id];
+
+      localStorage.setItem(STATE_KEY, JSON.stringify(savedState));
+
+      // Refrescar tabla y total
+      renderInventoryTable();
+
       hide('#sellOverlay');
       renderAll();
     });
   })();
 }
+
 
 
 
@@ -405,6 +401,31 @@ function hide(selector) { const el = document.querySelector(selector); if (el) e
 
 /* ---------- Inventory rendering ---------- */
 function renderInventoryTable(filter = '') {
+
+  // === LocalStorage para persistencia ===
+  const STATE_KEY = "inventory_selection_state";
+  const savedState = JSON.parse(localStorage.getItem(STATE_KEY) || "{}");
+
+  const saveState = () => {
+    localStorage.setItem(STATE_KEY, JSON.stringify(savedState));
+  };
+
+  // ====== MÉTODO GLOBAL PARA RESETEAR DESPUÉS DE UNA VENTA ======
+  window.resetSelectionAfterSale = (id) => {
+    if (savedState[id]) delete savedState[id];
+    saveState();
+    renderInventoryTable(filter); // refrescar tabla
+  };
+
+  // Para ventas múltiples
+  window.resetSelectionAfterSaleMultiple = (ids = []) => {
+    ids.forEach(id => delete savedState[id]);
+    saveState();
+    renderInventoryTable(filter);
+  };
+  // ===============================================================
+
+
   // Crear contenedor del total si no existe
   let totalBox = document.getElementById('totalPagarContainer');
   if (!totalBox) {
@@ -429,17 +450,23 @@ function renderInventoryTable(filter = '') {
     .filter(p => (p.qty || 0) > 0)
     .filter(p => {
       if (!q) return true;
-      return (p.name || '').toLowerCase().includes(q) ||
-             (p.brand || '').toLowerCase().includes(q) ||
-             (p.category || '').toLowerCase().includes(q);
+      return (
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.brand || '').toLowerCase().includes(q) ||
+        (p.category || '').toLowerCase().includes(q)
+      );
     })
     .forEach(p => {
       const price = Math.round((p.cost || 0) * (1 + (p.marginPercent || 0) / 100));
 
+      // Cargar valores guardados
+      const savedQty = savedState[p.id]?.qty || 0;
+      const savedChecked = savedState[p.id]?.checked || false;
+
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>
-          <input class="row-select" data-id="${p.id}" data-price="${price}" type="checkbox">
+          <input class="row-select" data-id="${p.id}" data-price="${price}" type="checkbox" ${savedChecked ? 'checked' : ''}>
         </td>
         <td>${esc(p.name)}</td>
         <td>${esc(p.brand || '')}</td>
@@ -448,7 +475,7 @@ function renderInventoryTable(filter = '') {
         <td style="color:#45d37a">${p.sold || 0}</td>
         <td>
           <button class="qty-btn" style="padding:4px 8px;" data-action="minus" data-id="${p.id}">-</button>
-          <span class="qty-display" data-id="${p.id}">0</span>
+          <span class="qty-display" data-id="${p.id}">${savedQty}</span>
           <button class="qty-btn" style="padding:4px 8px; margin-right:3px;" data-action="plus" data-id="${p.id}">+</button>
 
           <button class="btn ghost sell-btn" data-id="${p.id}">Vender</button>
@@ -460,11 +487,9 @@ function renderInventoryTable(filter = '') {
       tbody.appendChild(tr);
     });
 
-  // ====================================================
-  // SISTEMA DE SELECCIÓN + CANTIDADES + TOTAL INTEGRADO
-  // ====================================================
-
-  // Función interna para actualizar total
+  // ================================
+  //    SISTEMA TOTAL + CANTIDADES
+  // ================================
   const updateTotal = () => {
     let total = 0;
 
@@ -478,18 +503,21 @@ function renderInventoryTable(filter = '') {
     document.getElementById('totalPagar').textContent = formatCurrency(total);
   };
 
-  // Cuando seleccionan checkbox → cantidad = 1
+  // Checkbox = activar/desactivar producto
   document.querySelectorAll('.row-select').forEach(chk => {
     chk.addEventListener('change', () => {
       const id = chk.dataset.id;
       const display = document.querySelector(`.qty-display[data-id="${id}"]`);
 
       if (chk.checked) {
-        display.textContent = 1;  // cantidad inicial
+        display.textContent = savedState[id]?.qty || 1;
+        savedState[id] = { qty: Number(display.textContent), checked: true };
       } else {
-        display.textContent = 0;  // desmarcar reinicia
+        display.textContent = 0;
+        savedState[id] = { qty: 0, checked: false };
       }
 
+      saveState();
       updateTotal();
     });
   });
@@ -505,7 +533,7 @@ function renderInventoryTable(filter = '') {
 
       let qty = Number(display.textContent);
 
-      // EFECTO DE CLICK (morado con texto blanco)
+      // animación
       btn.style.background = '#6a0dad';
       btn.style.color = 'white';
       setTimeout(() => {
@@ -514,22 +542,28 @@ function renderInventoryTable(filter = '') {
       }, 150);
 
       if (action === 'plus') {
-        if (!chk.checked) chk.checked = true; // auto-activa si estaba apagado
+        if (!chk.checked) chk.checked = true;
         qty++;
       } else if (action === 'minus' && qty > 1) {
         qty--;
       } else if (action === 'minus' && qty === 1) {
         qty = 0;
-        chk.checked = false; // si llega a 0, desactiva item
+        chk.checked = false;
       }
 
       display.textContent = qty;
+
+      savedState[id] = { qty, checked: chk.checked };
+
+      saveState();
       updateTotal();
     });
   });
 
-  updateTotal(); // por si queda algo marcado
+  updateTotal();
 }
+
+
 
 
 
