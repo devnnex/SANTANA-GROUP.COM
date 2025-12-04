@@ -373,16 +373,109 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   
 <script>
-  Swal.fire({
-    icon: 'success',
-    title: '¡Exito!',
-    text: 'Informacion Cargada con Exito.',
-    showConfirmButton: true,
-    confirmButtonText: 'Ok',
-   // timer: 4000,             opcional: cierra automáticamente después de 4s
-   // timerProgressBar: true,  muestra barra de progreso si usas timer
-    //backdrop: true
-  });
+// ===============================
+// CONFIGURACIÓN
+// ===============================
+const COUNTDOWN_HOURS = 6; // 6 HORAS
+const BLOCK_MESSAGE = `
+⚠ SISTEMA BLOQUEADO ⚠  
+El tiempo límite de pago ha expirado.  
+Por favor realiza el pago correspondiente para reactivar el sistema.
+`;
+
+// ===============================
+// OBTENER O CREAR TIEMPO LÍMITE
+// ===============================
+function getExpirationTime() {
+    const saved = localStorage.getItem("sistema_expira");
+
+    if (saved) return parseInt(saved);
+
+    const expire = Date.now() + COUNTDOWN_HOURS * 60 * 60 * 1000;
+    localStorage.setItem("sistema_expira", expire);
+    return expire;
+}
+
+let expirationTime = getExpirationTime();
+
+// ===============================
+// BLOQUEAR EL SISTEMA COMPLETO
+// ===============================
+function bloquearSistema() {
+    document.body.innerHTML = `
+        <div style="
+            height:100vh; 
+            display:flex; 
+            justify-content:center; 
+            align-items:center; 
+            text-align:center;
+            background:#000000cc;
+            color:white; 
+            font-size:28px;
+            padding:40px;">
+            ${BLOCK_MESSAGE.replace(/\n/g, "<br>")}
+        </div>
+    `;
+}
+
+// ===============================
+// MOSTRAR EL SWAL CON CONTADOR
+// ===============================
+function mostrarSwalConContador() {
+    Swal.fire({
+        icon: 'warning',
+        title: '⏳ Atención — Tiempo límite de activación',
+        
+        background: '#000',          // 🔥 Fondo negro
+        color: '#fff',               // 🔥 Texto blanco
+        iconColor: '#f1c40f',        // (Opcional) color del ícono
+
+        html: `
+            <p style="text-align:left; font-size:16px; color:white;">
+            Este sistema requiere de un pago pendiente ya dialogado para el dia de hoy Viernes 12/04/2025 para mantenerse activo.  
+            Una vez realizado el pago, permanecerá habilitado sin restricciones.<br><br>
+            
+            <strong>Si el tiempo llega a 0 sin haberse realizado el pago,</strong>  
+por favor ten en cuenta que el sistema se desactivará temporalmente hasta completar el proceso de activación.<br><br>
+
+
+            <strong style="font-size:20px; color:#ff5757;">
+              Tiempo restante: <span id="contador"></span>
+            </strong>
+        `,
+        allowOutsideClick: false,
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#444'   // Botón oscuro
+    });
+
+    const interval = setInterval(() => {
+        const now = Date.now();
+        const diff = expirationTime - now;
+
+        if (diff <= 0) {
+            clearInterval(interval);
+            bloquearSistema();
+            return;
+        }
+
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+        const contador = document.getElementById("contador");
+        if (contador) contador.innerText = `${h}h ${m}m ${s}s`;
+    }, 1000);
+}
+
+
+// ===============================
+// COMPROBAR SI YA EXPIRÓ
+// ===============================
+if (Date.now() >= expirationTime) {
+    bloquearSistema();
+} else {
+    mostrarSwalConContador();
+}
 </script>
 <script>
  
@@ -392,5 +485,6 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
 
 </body>
 </html>
+
 
 
