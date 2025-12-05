@@ -373,37 +373,31 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   
 <script>
-  // 🔄 REINICIAR EL CONTADOR (opcional, usar SOLO para darle más tiempo)
-localStorage.removeItem("sistema_expira");
-// ===============================
-// CONFIGURACIÓN
-// ===============================
-const COUNTDOWN_HOURS = 7; // ⏳ 7 HORAS
+// ======================================================
+// CONFIGURACIÓN — CREAR LA EXPIRACIÓN SOLO SI NO EXISTE
+// ======================================================
+const HORAS_LIMITE = 2; // 2 horas
+let expirationTime = localStorage.getItem("sistema_expira");
+
+if (!expirationTime) {
+    expirationTime = Date.now() + HORAS_LIMITE * 60 * 60 * 1000;
+    localStorage.setItem("sistema_expira", expirationTime);
+} else {
+    expirationTime = parseInt(expirationTime, 10);
+}
+
+// ======================================================
+// MENSAJE CUANDO EL SISTEMA SE BLOQUEA
+// ======================================================
 const BLOCK_MESSAGE = `
 ⚠ SISTEMA BLOQUEADO ⚠  
-El tiempo límite de pago ha expirado.  
+El tiempo límite de pago ha terminado.  
 Por favor realiza el pago correspondiente para reactivar el sistema.
 `;
 
-// ===============================
-// OBTENER O CREAR TIEMPO LÍMITE
-// ===============================
-function getExpirationTime() {
-    const saved = localStorage.getItem("sistema_expira");
-
-    if (saved) return parseInt(saved);
-
-    // ⏳ Crear nuevo tiempo tomando como referencia HOY / AHORA
-    const expire = Date.now() + COUNTDOWN_HOURS * 60 * 60 * 1000;
-    localStorage.setItem("sistema_expira", expire);
-    return expire;
-}
-
-let expirationTime = getExpirationTime();
-
-// ===============================
-// BLOQUEAR EL SISTEMA COMPLETO
-// ===============================
+// ======================================================
+// BLOQUEAR SISTEMA COMPLETO
+// ======================================================
 function bloquearSistema() {
     document.body.innerHTML = `
         <div style="
@@ -421,25 +415,25 @@ function bloquearSistema() {
     `;
 }
 
-// ===============================
-// MOSTRAR EL SWAL CON CONTADOR
-// ===============================
+// ======================================================
+// MOSTRAR EL SWTAL CON CONTADOR
+// ======================================================
 function mostrarSwalConContador() {
     Swal.fire({
         icon: 'warning',
         title: '⏳ Atención — Tiempo límite de activación',
-        
+
         background: '#000',           
         color: '#fff',                
-        iconColor: '#f1c40f',         
+        iconColor: '#f1c40f',
 
         html: `
             <p style="text-align:left; font-size:16px; color:white;">
-            Este sistema requiere de un pago pendiente ya dialogado para el dia de hoy Viernes 12/04/2025 para mantenerse activo.  
-            Una vez realizado el pago, permanecerá habilitado sin restricciones.<br><br>
-            
-            <strong>Si el tiempo llega a 0 sin haberse realizado el pago,</strong>  
-            por favor ten en cuenta que el sistema se desactivará temporalmente hasta completar el proceso de activación.<br><br>
+            Este sistema requiere un pago pendiente para mantenerse activo.  
+            Una vez se realice, permanecerá habilitado sin restricciones.<br><br>
+
+            <strong>Si el tiempo llega a 0 sin haberse efectuado el pago,</strong>  
+            el sistema se desactivará temporalmente hasta completar el proceso.<br><br>
 
             <strong style="font-size:20px; color:#ff5757;">
               Tiempo restante: <span id="contador"></span>
@@ -469,9 +463,9 @@ function mostrarSwalConContador() {
     }, 1000);
 }
 
-// ===============================
-// COMPROBAR SI YA EXPIRÓ
-// ===============================
+// ======================================================
+// VERIFICAR SI YA EXPIRÓ
+// ======================================================
 if (Date.now() >= expirationTime) {
     bloquearSistema();
 } else {
@@ -486,6 +480,7 @@ if (Date.now() >= expirationTime) {
 
 </body>
 </html>
+
 
 
 
