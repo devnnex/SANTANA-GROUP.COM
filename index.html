@@ -371,7 +371,53 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
 <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 <!-- ✅ SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  
+  <script>
+// CONTACTO DEL PROGRAMADOR (cámbialo)
+const CONTACTO = "Contactar al programador para llegar a un acuerdo";
+
+// Mostrar alerta y luego bloquear página
+function bloquearPagina() {
+  Swal.fire({
+    icon: "info",
+    title: "Información importante",
+    text: "Por favor ponerse en contacto con el programador para llegar a un acuerdo.",
+    confirmButtonText: "Entendido",
+    allowOutsideClick: false,
+    allowEscapeKey: false
+  }).then(() => {
+
+    // Crear capa que bloquea toda la pantalla
+    const overlay = document.createElement("div");
+    overlay.id = "bloqueoTotal";
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.background = "rgba(0,0,0,0.9)";
+    overlay.style.color = "white";
+    overlay.style.display = "flex";
+    overlay.style.flexDirection = "column";
+    overlay.style.justifyContent = "center";
+    overlay.style.alignItems = "center";
+    overlay.style.fontSize = "20px";
+    overlay.style.zIndex = "999999";
+
+    overlay.innerHTML = `
+      <p><b>ACCESO BLOQUEADO</b></p>
+      <p>${CONTACTO}</p>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Evitar scroll
+    document.body.style.overflow = "hidden";
+  });
+}
+
+// Ejecutar de inmediato
+bloquearPagina();
+</script>
 
 <script>
  
@@ -381,6 +427,7 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
 
 </body>
 </html>
+
 
 
 
