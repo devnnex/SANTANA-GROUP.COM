@@ -606,7 +606,6 @@ function renderInventoryTable(filter = '') {
 
 
 
-
 /* ---------- Sales rendering ---------- */
 /* ---------- Sales rendering ---------- */
 function renderSalesTable(filter = '') {
@@ -943,29 +942,25 @@ function renderStatsAndCharts() {
   if (stMargin)
     stMargin.innerHTML = makeKPI('margin', 'Margen', totalRevenue ? Math.round((totalProfit / totalRevenue) * 100) + '%' : '0%', '1.6rem', true);
 
-  // === Ventas de hoy (MISMA lógica que renderSalesTable) ===
-const now = new Date();
+  // === Ventas de hoy y del mes ===
+  const now = new Date();
+  const offsetBogota = -5 * 60;
+  const nowBogota = new Date(now.getTime() + (offsetBogota + now.getTimezoneOffset()) * 60000);
+  const todayKey = nowBogota.toISOString().slice(0, 10);
+  const monthKey = nowBogota.toISOString().slice(0, 7);
 
-// Fecha actual en Bogotá
-const bogotaDate = new Date(
-  now.toLocaleString("en-US", { timeZone: "America/Bogota" })
-);
+  const salesToday = sales
+    .filter(s => {
+      if (!s.timestamp) return false;
+      const saleDate = new Date(s.timestamp);
+      const saleBogota = new Date(saleDate.getTime() + (offsetBogota + saleDate.getTimezoneOffset()) * 60000);
+      return saleBogota.toISOString().slice(0, 10) === todayKey;
+    })
+    .reduce((a, b) => a + (b.total || 0), 0);
 
-const y = bogotaDate.getFullYear();
-const m = bogotaDate.getMonth();
-const d = bogotaDate.getDate();
-
-// Día Bogotá expresado en UTC (05:00 → 05:00)
-const startDay = new Date(Date.UTC(y, m, d, 5, 0, 0));
-const endDay   = new Date(Date.UTC(y, m, d + 1, 5, 0, 0));
-
-const salesToday = sales
-  .filter(s => {
-    if (!s.timestamp) return false;
-    const t = new Date(s.timestamp);
-    return t >= startDay && t < endDay;
-  })
-  .reduce((sum, s) => sum + (s.total || 0), 0);
+  const salesThisMonth = sales
+    .filter(s => (s.timestamp || '').slice(0, 7) === monthKey)
+    .reduce((a, b) => a + (b.total || 0), 0);
 
   // === Aplicar mismo formato KPI a hoy y mes ===
   if (stToday)
@@ -1733,7 +1728,7 @@ function sendClientEmailForm(cliente) {
   document.body.appendChild(form);
 
   emailjs
-    .sendForm("service_0mtokv9", "template_rt5dymj", form)
+    .sendForm("service_0mtokv9", "template_5b9opl4", form)
     .then(() =>
       Swal.fire({
         icon: "success",
