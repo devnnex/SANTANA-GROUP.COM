@@ -372,6 +372,164 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
 <!-- ✅ SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+  <script>
+Swal.fire({
+  icon: 'success',
+  title: 'Nueva actualización',
+  text: 'Las prendas que selecciones se posicionarán automáticamente en la parte superior de la tabla de inventario para facilitar su acceso.',
+  confirmButtonText: 'Aceptar',
+  background: '#050505',
+  didOpen: () => {
+    const popup = Swal.getPopup();
+
+    /* ============================= */
+    /* ESTILOS (UNA SOLA VEZ) */
+    /* ============================= */
+    if (!document.getElementById('swal-neural-style')) {
+      const style = document.createElement('style');
+      style.id = 'swal-neural-style';
+      style.innerHTML = `
+        .swal2-popup {
+          color: #ffffff !important;
+          border-radius: 22px !important;
+          overflow: hidden !important;
+        }
+
+        .swal-neural-canvas {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          pointer-events: none;
+        }
+
+        /* CONTENIDO ARRIBA */
+        .swal2-icon,
+        .swal2-title,
+        .swal2-html-container,
+        .swal2-actions {
+          position: relative;
+          z-index: 2;
+        }
+
+        /* ICONO VERDE */
+        .swal2-icon.swal2-success {
+          border-color: #45d37a !important;
+          color: #45d37a !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    /* ============================= */
+    /* CANVAS */
+    /* ============================= */
+    const canvas = document.createElement('canvas');
+    canvas.className = 'swal-neural-canvas';
+    popup.appendChild(canvas);
+
+    const ctx = canvas.getContext('2d');
+
+    const resize = () => {
+      canvas.width = popup.clientWidth;
+      canvas.height = popup.clientHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    /* ============================= */
+    /* PARTÍCULAS */
+    /* ============================= */
+    const particles = [];
+    const COUNT = 45;
+    const LINK_DIST = 120;
+    const MOUSE_RADIUS = 90;
+
+    const mouse = { x: null, y: null };
+
+    popup.addEventListener('mousemove', e => {
+      const rect = popup.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+    });
+
+    popup.addEventListener('mouseleave', () => {
+      mouse.x = null;
+      mouse.y = null;
+    });
+
+    for (let i = 0; i < COUNT; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.6,
+        vy: (Math.random() - 0.5) * 0.6
+      });
+    }
+
+    /* ============================= */
+    /* LOOP */
+    /* ============================= */
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Rebote suave
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        // Repulsión del mouse
+        if (mouse.x !== null) {
+          const dx = p.x - mouse.x;
+          const dy = p.y - mouse.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < MOUSE_RADIUS) {
+            const force = (MOUSE_RADIUS - dist) / MOUSE_RADIUS;
+            p.vx += (dx / dist) * force * 0.6;
+            p.vy += (dy / dist) * force * 0.6;
+          }
+        }
+
+        // Nodo
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = '#9b4dff';
+        ctx.fill();
+      });
+
+      // Conexiones
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const a = particles[i];
+          const b = particles[j];
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < LINK_DIST) {
+            ctx.strokeStyle = `rgba(155,77,255,${1 - dist / LINK_DIST})`;
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  }
+});
+
+
+
+</script>
 
 <script>
  
@@ -381,6 +539,7 @@ body { background: var(--bg-dark); color: var(--text-light); min-height:100vh; }
 
 </body>
 </html>
+
 
 
 
