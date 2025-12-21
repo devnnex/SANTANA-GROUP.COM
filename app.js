@@ -400,7 +400,10 @@ function renderInventoryTable(filter = '') {
   const STATE_KEY = "inventory_selection_state";
   const savedState = JSON.parse(localStorage.getItem(STATE_KEY) || "{}");
 
+  let selectionCounter = savedState.__counter || 0;
+
   const saveState = () => {
+    savedState.__counter = selectionCounter;
     localStorage.setItem(STATE_KEY, JSON.stringify(savedState));
   };
 
@@ -408,10 +411,9 @@ function renderInventoryTable(filter = '') {
   window.resetSelectionAfterSale = (id) => {
     if (savedState[id]) delete savedState[id];
     saveState();
-    renderInventoryTable(filter); // refrescar tabla
+    renderInventoryTable(filter);
   };
 
-  // Para ventas múltiples
   window.resetSelectionAfterSaleMultiple = (ids = []) => {
     ids.forEach(id => delete savedState[id]);
     saveState();
@@ -438,7 +440,12 @@ function renderInventoryTable(filter = '') {
   tbody.innerHTML = '';
 
   const q = (filter || '').trim().toLowerCase();
-  const products = loadProducts();
+
+  // 🔹 GUARDAMOS ORDEN ORIGINAL (NO AFECTA NADA)
+  const products = loadProducts().map((p, index) => ({
+    ...p,
+    __originalIndex: index
+  }));
 
   products
     .filter(p => (p.qty || 0) > 0)
@@ -450,10 +457,21 @@ function renderInventoryTable(filter = '') {
         (p.category || '').toLowerCase().includes(q)
       );
     })
+    // 🔥 ORDEN POR SELECCIÓN
+    .sort((a, b) => {
+      const A = savedState[a.id];
+      const B = savedState[b.id];
+
+      if (A?.checked && B?.checked) return A.selectedOrder - B.selectedOrder;
+      if (A?.checked) return -1;
+      if (B?.checked) return 1;
+
+      return a.__originalIndex - b.__originalIndex;
+    })
     .forEach(p => {
+
       const price = Math.round((p.cost || 0) * (1 + (p.marginPercent || 0) / 100));
 
-      // Cargar valores guardados
       const savedQty = savedState[p.id]?.qty || 0;
       const savedChecked = savedState[p.id]?.checked || false;
 
@@ -477,7 +495,6 @@ function renderInventoryTable(filter = '') {
           <button class="btn ghost delete-btn" data-id="${p.id}">Eliminar</button>
         </td>
       `;
-
       tbody.appendChild(tr);
     });
 
@@ -497,26 +514,37 @@ function renderInventoryTable(filter = '') {
     document.getElementById('totalPagar').textContent = formatCurrency(total);
   };
 
-  // Checkbox = activar/desactivar producto
+  // ================================
+  // CHECKBOX
+  // ================================
   document.querySelectorAll('.row-select').forEach(chk => {
     chk.addEventListener('change', () => {
       const id = chk.dataset.id;
       const display = document.querySelector(`.qty-display[data-id="${id}"]`);
 
       if (chk.checked) {
+        selectionCounter++;
         display.textContent = savedState[id]?.qty || 1;
-        savedState[id] = { qty: Number(display.textContent), checked: true };
-      } else {
-        display.textContent = 0;
-        savedState[id] = { qty: 0, checked: false };
+        savedState[id] = {
+          qty: Number(display.textContent),
+          checked: true,
+          selectedOrder: selectionCounter
+        };
+        saveState();
+        renderInventoryTable(filter); // 🔥 reordenar
+        return;
       }
 
+      display.textContent = 0;
+      delete savedState[id];
       saveState();
-      updateTotal();
+      renderInventoryTable(filter);
     });
   });
 
-  // Botones − y +
+  // ================================
+  // BOTONES − y +
+  // ================================
   document.querySelectorAll('.qty-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.id;
@@ -527,7 +555,7 @@ function renderInventoryTable(filter = '') {
 
       let qty = Number(display.textContent);
 
-      // animación
+      // animación (se mantiene)
       btn.style.background = '#6a0dad';
       btn.style.color = 'white';
       setTimeout(() => {
@@ -536,19 +564,34 @@ function renderInventoryTable(filter = '') {
       }, 150);
 
       if (action === 'plus') {
-        if (!chk.checked) chk.checked = true;
+        if (!chk.checked) {
+          chk.checked = true;
+          selectionCounter++;
+          savedState[id] = {
+            qty: 1,
+            checked: true,
+            selectedOrder: selectionCounter
+          };
+          saveState();
+          renderInventoryTable(filter); // 🔥 mismo comportamiento
+          return;
+        }
         qty++;
-      } else if (action === 'minus' && qty > 1) {
+      }
+
+      if (action === 'minus' && qty > 1) {
         qty--;
       } else if (action === 'minus' && qty === 1) {
-        qty = 0;
+        display.textContent = 0;
         chk.checked = false;
+        delete savedState[id];
+        saveState();
+        renderInventoryTable(filter);
+        return;
       }
 
       display.textContent = qty;
-
-      savedState[id] = { qty, checked: chk.checked };
-
+      savedState[id] = { qty, checked: true, selectedOrder: savedState[id]?.selectedOrder };
       saveState();
       updateTotal();
     });
@@ -556,6 +599,7 @@ function renderInventoryTable(filter = '') {
 
   updateTotal();
 }
+
 
 
 
@@ -899,25 +943,29 @@ function renderStatsAndCharts() {
   if (stMargin)
     stMargin.innerHTML = makeKPI('margin', 'Margen', totalRevenue ? Math.round((totalProfit / totalRevenue) * 100) + '%' : '0%', '1.6rem', true);
 
-  // === Ventas de hoy y del mes ===
-  const now = new Date();
-  const offsetBogota = -5 * 60;
-  const nowBogota = new Date(now.getTime() + (offsetBogota + now.getTimezoneOffset()) * 60000);
-  const todayKey = nowBogota.toISOString().slice(0, 10);
-  const monthKey = nowBogota.toISOString().slice(0, 7);
+  // === Ventas de hoy (MISMA lógica que renderSalesTable) ===
+const now = new Date();
 
-  const salesToday = sales
-    .filter(s => {
-      if (!s.timestamp) return false;
-      const saleDate = new Date(s.timestamp);
-      const saleBogota = new Date(saleDate.getTime() + (offsetBogota + saleDate.getTimezoneOffset()) * 60000);
-      return saleBogota.toISOString().slice(0, 10) === todayKey;
-    })
-    .reduce((a, b) => a + (b.total || 0), 0);
+// Fecha actual en Bogotá
+const bogotaDate = new Date(
+  now.toLocaleString("en-US", { timeZone: "America/Bogota" })
+);
 
-  const salesThisMonth = sales
-    .filter(s => (s.timestamp || '').slice(0, 7) === monthKey)
-    .reduce((a, b) => a + (b.total || 0), 0);
+const y = bogotaDate.getFullYear();
+const m = bogotaDate.getMonth();
+const d = bogotaDate.getDate();
+
+// Día Bogotá expresado en UTC (05:00 → 05:00)
+const startDay = new Date(Date.UTC(y, m, d, 5, 0, 0));
+const endDay   = new Date(Date.UTC(y, m, d + 1, 5, 0, 0));
+
+const salesToday = sales
+  .filter(s => {
+    if (!s.timestamp) return false;
+    const t = new Date(s.timestamp);
+    return t >= startDay && t < endDay;
+  })
+  .reduce((sum, s) => sum + (s.total || 0), 0);
 
   // === Aplicar mismo formato KPI a hoy y mes ===
   if (stToday)
