@@ -353,7 +353,7 @@ if (!document.getElementById('sellOverlay')) {
       delete savedState[id];
       localStorage.setItem(STATE_KEY, JSON.stringify(savedState));
 
-      ();
+      renderInventoryTable();
       hide('#sellOverlay');
       renderAll();
     });
@@ -419,10 +419,86 @@ function renderInventoryTable(filter = '') {
     saveState();
     renderInventoryTable(filter);
   };
-  // ===============================================================
 
+  // ================================
+  // 🟡 ESTADO GLOBAL ROBUSTO
+  // ================================
+  if (!window.__pendingPurchaseState) {
+    window.__pendingPurchaseState = {
+      startTimestamp: null,
+      alertShown: false,
+      interval: null,
+      lastTotal: 0
+    };
+  }
 
-  // Crear contenedor del total si no existe
+  const pendingState = window.__pendingPurchaseState;
+
+  // ================================
+  // 🔊 AUDIO GLOBAL (NUEVO)
+  // ================================
+  if (!window.__pendingPurchaseAudio) {
+    window.__pendingPurchaseAudio = new Audio('images/alert.mp3');
+    window.__pendingPurchaseAudio.loop = true;
+  }
+
+  const watchPendingPurchase = (total) => {
+    if (total <= 0) {
+      pendingState.startTimestamp = null;
+      pendingState.alertShown = false;
+      pendingState.lastTotal = 0;
+
+      if (pendingState.interval) {
+        clearInterval(pendingState.interval);
+        pendingState.interval = null;
+      }
+
+      window.__pendingPurchaseAudio.pause();
+      window.__pendingPurchaseAudio.currentTime = 0;
+      return;
+    }
+
+    // 🔁 Si el total cambió, reinicia conteo
+    if (pendingState.lastTotal !== total) {
+      pendingState.startTimestamp = Date.now();
+      pendingState.alertShown = false;
+      pendingState.lastTotal = total;
+    }
+
+    if (!pendingState.interval) {
+      pendingState.interval = setInterval(() => {
+        const elapsed = Date.now() - pendingState.startTimestamp;
+
+        if (elapsed >= 60000 && !pendingState.alertShown) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Compra pendiente',
+            text: 'Oye, aún no has confirmado esta compra 🛒',
+            confirmButtonText: 'Revisar compra',
+            background: '#111',
+            color: '#fff',
+            iconColor: '#facc15',
+
+            didOpen: () => {
+              window.__pendingPurchaseAudio.currentTime = 0;
+              window.__pendingPurchaseAudio.play().catch(() => {});
+            },
+
+            willClose: () => {
+              window.__pendingPurchaseAudio.pause();
+              window.__pendingPurchaseAudio.currentTime = 0;
+            }
+          });
+
+          pendingState.alertShown = true;
+        }
+      }, 3000);
+    }
+  };
+
+  // ================================
+  // TOTAL
+  // ================================
   let totalBox = document.getElementById('totalPagarContainer');
   if (!totalBox) {
     totalBox = document.createElement('div');
@@ -441,7 +517,6 @@ function renderInventoryTable(filter = '') {
 
   const q = (filter || '').trim().toLowerCase();
 
-  // 🔹 GUARDAMOS ORDEN ORIGINAL (NO AFECTA NADA)
   const products = loadProducts().map((p, index) => ({
     ...p,
     __originalIndex: index
@@ -457,21 +532,17 @@ function renderInventoryTable(filter = '') {
         (p.category || '').toLowerCase().includes(q)
       );
     })
-    // 🔥 ORDEN POR SELECCIÓN
     .sort((a, b) => {
       const A = savedState[a.id];
       const B = savedState[b.id];
-
       if (A?.checked && B?.checked) return A.selectedOrder - B.selectedOrder;
       if (A?.checked) return -1;
       if (B?.checked) return 1;
-
       return a.__originalIndex - b.__originalIndex;
     })
     .forEach(p => {
 
       const price = Math.round((p.cost || 0) * (1 + (p.marginPercent || 0) / 100));
-
       const savedQty = savedState[p.id]?.qty || 0;
       const savedChecked = savedState[p.id]?.checked || false;
 
@@ -498,25 +569,18 @@ function renderInventoryTable(filter = '') {
       tbody.appendChild(tr);
     });
 
-  // ================================
-  //    SISTEMA TOTAL + CANTIDADES
-  // ================================
   const updateTotal = () => {
     let total = 0;
-
     document.querySelectorAll('.row-select:checked').forEach(chk => {
       const id = chk.dataset.id;
       const price = Number(chk.dataset.price);
       const qty = Number(document.querySelector(`.qty-display[data-id="${id}"]`).textContent);
       total += qty * price;
     });
-
     document.getElementById('totalPagar').textContent = formatCurrency(total);
+    watchPendingPurchase(total);
   };
 
-  // ================================
-  // CHECKBOX
-  // ================================
   document.querySelectorAll('.row-select').forEach(chk => {
     chk.addEventListener('change', () => {
       const id = chk.dataset.id;
@@ -525,13 +589,9 @@ function renderInventoryTable(filter = '') {
       if (chk.checked) {
         selectionCounter++;
         display.textContent = savedState[id]?.qty || 1;
-        savedState[id] = {
-          qty: Number(display.textContent),
-          checked: true,
-          selectedOrder: selectionCounter
-        };
+        savedState[id] = { qty: Number(display.textContent), checked: true, selectedOrder: selectionCounter };
         saveState();
-        renderInventoryTable(filter); // 🔥 reordenar
+        renderInventoryTable(filter);
         return;
       }
 
@@ -542,20 +602,10 @@ function renderInventoryTable(filter = '') {
     });
   });
 
-  // ================================
-  // BOTONES − y +
-  // ================================
   document.querySelectorAll('.qty-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      const action = btn.dataset.action;
 
-      const chk = document.querySelector(`.row-select[data-id="${id}"]`);
-      const display = document.querySelector(`.qty-display[data-id="${id}"]`);
-
-      let qty = Number(display.textContent);
-
-      // animación (se mantiene)
+      // 🔹 ANIMACIÓN ORIGINAL RESTAURADA
       btn.style.background = '#6a0dad';
       btn.style.color = 'white';
       setTimeout(() => {
@@ -563,25 +613,26 @@ function renderInventoryTable(filter = '') {
         btn.style.color = '';
       }, 150);
 
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      const chk = document.querySelector(`.row-select[data-id="${id}"]`);
+      const display = document.querySelector(`.qty-display[data-id="${id}"]`);
+      let qty = Number(display.textContent);
+
       if (action === 'plus') {
         if (!chk.checked) {
           chk.checked = true;
           selectionCounter++;
-          savedState[id] = {
-            qty: 1,
-            checked: true,
-            selectedOrder: selectionCounter
-          };
+          savedState[id] = { qty: 1, checked: true, selectedOrder: selectionCounter };
           saveState();
-          renderInventoryTable(filter); // 🔥 mismo comportamiento
+          renderInventoryTable(filter);
           return;
         }
         qty++;
       }
 
-      if (action === 'minus' && qty > 1) {
-        qty--;
-      } else if (action === 'minus' && qty === 1) {
+      if (action === 'minus' && qty > 1) qty--;
+      else if (action === 'minus' && qty === 1) {
         display.textContent = 0;
         chk.checked = false;
         delete savedState[id];
@@ -1696,40 +1747,33 @@ document.addEventListener('click', e => {
   }
 });
 
-/* === Envío de correo con EmailJS === */
+/* === Envío de correo con EmailJS FUNCION QUE SIRVE PARA CUALQUIER TIENDA === */
 function sendClientEmailForm(cliente) {
+
+const EMAILJS_SERVICE_ID  = "service_ezqlbhb";
+const EMAILJS_TEMPLATE_ID = "template_w9sk5cf";
+
   if (!cliente || !cliente.correo) {
     return alert("⚠️ No se encontró un correo válido para este cliente.");
   }
 
-  // ❌ Eliminamos el confirm interno (lo haremos fuera)
-  // if (!confirm(`¿Enviar correo a ${cliente.nombre}?`)) return;
-
-  // Crear formulario invisible
-  const form = document.createElement("form");
-  form.style.display = "none";
-
-  const data = {
+  /* ===== VARIABLES PARA EL TEMPLATE ===== */
+  const templateParams = {
     to_name: cliente.nombre,
-    to_email: cliente.correo,
+    email: cliente.correo,               // 👈 debe coincidir con {{email}}
     telefono: cliente.telefono || "No registrado",
     fecha: new Date().toLocaleDateString("es-CO"),
     year: new Date().getFullYear(),
   };
 
-  for (const key in data) {
-    const input = document.createElement("input");
-    input.type = "hidden";
-    input.name = key;
-    input.value = data[key];
-    form.appendChild(input);
-  }
-
-  document.body.appendChild(form);
-
+  /* ===== ENVÍO EMAILJS ===== */
   emailjs
-    .sendForm("service_klqo261", "template_rt5dymj", form)
-    .then(() =>
+    .send(
+      EMAILJS_SERVICE_ID,
+      EMAILJS_TEMPLATE_ID,
+      templateParams
+    )
+    .then(() => {
       Swal.fire({
         icon: "success",
         title: "¡Correo enviado!",
@@ -1738,8 +1782,8 @@ function sendClientEmailForm(cliente) {
         timer: 2500,
         background: "#111",
         color: "#fff",
-      })
-    )
+      });
+    })
     .catch((err) => {
       console.error("Error al enviar EmailJS:", err);
       Swal.fire({
@@ -1751,9 +1795,9 @@ function sendClientEmailForm(cliente) {
         background: "#111",
         color: "#fff",
       });
-    })
-    .finally(() => form.remove());
+    });
 }
+
 
 
 
@@ -2111,6 +2155,3 @@ $$('.tab-btn').forEach(btn => {
 if (document.querySelector('#clients') && !document.querySelector('#clients').classList.contains('hidden')) {
   refreshClientsUI();
 }
-
-
-
