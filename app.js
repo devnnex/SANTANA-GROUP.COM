@@ -469,7 +469,7 @@ function renderInventoryTable(filter = '') {
       pendingState.interval = setInterval(() => {
         const elapsed = Date.now() - pendingState.startTimestamp;
 
-        if (elapsed >= 60000 && !pendingState.alertShown) {
+        if (elapsed >= 300000 && !pendingState.alertShown) {
           Swal.fire({
             icon: 'warning',
             title: 'Compra pendiente',
@@ -2162,5 +2162,6 @@ $$('.tab-btn').forEach(btn => {
 if (document.querySelector('#clients') && !document.querySelector('#clients').classList.contains('hidden')) {
   refreshClientsUI();
 }
+
 
 
