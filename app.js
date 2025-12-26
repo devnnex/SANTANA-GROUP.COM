@@ -1750,8 +1750,8 @@ document.addEventListener('click', e => {
 /* === Envío de correo con EmailJS FUNCION QUE SIRVE PARA CUALQUIER TIENDA === */
 function sendClientEmailForm(cliente) {
 
-const EMAILJS_SERVICE_ID  = "service_ezqlbhb";
-const EMAILJS_TEMPLATE_ID = "template_w9sk5cf";
+const EMAILJS_SERVICE_ID  = "service_klqo261";
+const EMAILJS_TEMPLATE_ID = "template_rt5dymj";
 
   if (!cliente || !cliente.correo) {
     return alert("⚠️ No se encontró un correo válido para este cliente.");
@@ -2155,3 +2155,4 @@ $$('.tab-btn').forEach(btn => {
 if (document.querySelector('#clients') && !document.querySelector('#clients').classList.contains('hidden')) {
   refreshClientsUI();
 }
+
