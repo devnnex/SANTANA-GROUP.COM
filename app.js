@@ -1749,31 +1749,38 @@ document.addEventListener('click', e => {
 
 /* === Envío de correo con EmailJS FUNCION QUE SIRVE PARA CUALQUIER TIENDA === */
 function sendClientEmailForm(cliente) {
-
-const EMAILJS_SERVICE_ID  = "service_klqo261";
-const EMAILJS_TEMPLATE_ID = "template_rt5dymj";
-
   if (!cliente || !cliente.correo) {
     return alert("⚠️ No se encontró un correo válido para este cliente.");
   }
 
-  /* ===== VARIABLES PARA EL TEMPLATE ===== */
-  const templateParams = {
+  // ❌ Eliminamos el confirm interno (lo haremos fuera)
+  // if (!confirm(`¿Enviar correo a ${cliente.nombre}?`)) return;
+
+  // Crear formulario invisible
+  const form = document.createElement("form");
+  form.style.display = "none";
+
+  const data = {
     to_name: cliente.nombre,
-    email: cliente.correo,               // 👈 debe coincidir con {{email}}
+    to_email: cliente.correo,
     telefono: cliente.telefono || "No registrado",
     fecha: new Date().toLocaleDateString("es-CO"),
     year: new Date().getFullYear(),
   };
 
-  /* ===== ENVÍO EMAILJS ===== */
+  for (const key in data) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = key;
+    input.value = data[key];
+    form.appendChild(input);
+  }
+
+  document.body.appendChild(form);
+
   emailjs
-    .send(
-      EMAILJS_SERVICE_ID,
-      EMAILJS_TEMPLATE_ID,
-      templateParams
-    )
-    .then(() => {
+    .sendForm("service_klqo261", "template_rt5dymj", form)
+    .then(() =>
       Swal.fire({
         icon: "success",
         title: "¡Correo enviado!",
@@ -1782,8 +1789,8 @@ const EMAILJS_TEMPLATE_ID = "template_rt5dymj";
         timer: 2500,
         background: "#111",
         color: "#fff",
-      });
-    })
+      })
+    )
     .catch((err) => {
       console.error("Error al enviar EmailJS:", err);
       Swal.fire({
@@ -1795,9 +1802,9 @@ const EMAILJS_TEMPLATE_ID = "template_rt5dymj";
         background: "#111",
         color: "#fff",
       });
-    });
+    })
+    .finally(() => form.remove());
 }
-
 
 
 
@@ -2155,4 +2162,5 @@ $$('.tab-btn').forEach(btn => {
 if (document.querySelector('#clients') && !document.querySelector('#clients').classList.contains('hidden')) {
   refreshClientsUI();
 }
+
 
